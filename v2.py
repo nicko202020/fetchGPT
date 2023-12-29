@@ -98,7 +98,7 @@ user.register_function(
     }
 )
 
-# # Example AutoGen interaction (hypothetical usage)
+# # Example AutoGen interactio n (hypothetical usage)
 # user.initiate_chat(
 #     robot_agent,
 #     message="Move robot to position (30, 30) and tell me which room the robot is in",
