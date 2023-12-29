@@ -22,11 +22,10 @@ class Robot:
         self.room = room
 
     def teleport(self, new_x, new_y):
-        if self.room.is_inside(new_x, new_y):
-            self.x = new_x
-            self.y = new_y
-            return f"Moved to ({new_x}, {new_y})"
-        return "Cannot move outside the room boundaries."
+        self.x = new_x
+        self.y = new_y
+        return f"Moved to ({new_x}, {new_y})"
+
 
     def current_position(self):
         return [self.x, self.y]
@@ -35,6 +34,7 @@ class Robot:
         if self.room.is_inside(self.x, self.y):
             return self.room.name
         return "Unknown room"
+
 # Functions for interacting with the robot
 def move_robot(new_x, new_y):
     global robot
@@ -47,6 +47,97 @@ def get_current_position():
 def get_robot_current_room():
     global robot
     return robot.current_room()
+
+def get_map_info():
+    return {"Rooms": map, "Nodes": nodes}
+
+def navigate_path(start, end):
+    global robot, nodes, paths
+    path_key = start + " to " + end
+    if path_key in paths:
+        for node in paths[path_key]:
+            node_info = nodes[node]
+            robot.teleport(node_info["x"], node_info["y"])
+            # Optionally, update the Pygame display here
+        return f"Robot moved from {start} to {end}"
+    return "Path not found"
+# Function to draw the dashboard on the screen
+def draw_dashboard():
+    pygame.draw.rect(screen, BLACK, [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
+    current_room_text = font.render(f"Current Room: {get_robot_current_room()}", True, WHITE)
+    current_position_text = font.render(f"Position: {get_current_position()}", True, WHITE)
+    screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
+    screen.blit(current_position_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 50))
+
+
+def draw_room(room):
+    # Draw the room with a contrasting color
+    pygame.draw.rect(screen, (0, 0, 255), [room.x1, room.y1, room.x2 - room.x1, room.y2 - room.y1], 1)
+
+def handle_command_input(command):
+    def llm_thread():
+        # Initiating chat with the AutoGen agent using the provided command
+        response = user.initiate_chat(
+            robot_agent,
+            message=command
+        )
+
+    # Start the LLM communication in a separate thread
+    threading.Thread(target=llm_thread).start()
+def draw_button():
+    pygame.draw.rect(screen, button_color, button)  # Draw the button
+    button_text = font.render('Send', True, WHITE)
+    screen.blit(button_text, (button.x + 20, button.y + 5))
+
+
+# Screen dimensions
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+DASHBOARD_HEIGHT = 150  # Height of the dashboard area
+
+# Colors
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
+
+# Set up the display
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Robot Room Simulator")
+# Calculate the center of the screen
+center_x = SCREEN_WIDTH // 2
+center_y = SCREEN_HEIGHT // 2
+
+# Adjust the room position to be centered
+room_width = 100
+room_height = 100
+living_room_x1 = center_x - room_width // 2
+living_room_y1 = center_y - room_height // 2
+living_room_x2 = center_x + room_width // 2
+living_room_y2 = center_y + room_height // 2
+living_room = Room("Living Room", living_room_x1, living_room_y1, 
+                   living_room_x2, living_room_y2)
+# Kitchen coordinates and dimensions
+# The kitchen starts where the living room ends on the X axis
+kitchen_x1 = living_room.x2
+kitchen_y1 = living_room.y1
+kitchen_x2 = kitchen_x1 + room_width
+kitchen_y2 = living_room.y2
+kitchen = Room("Kitchen", kitchen_x1, kitchen_y1, kitchen_x2, kitchen_y2)
+
+map = {
+    "Living Room": {"x1": living_room_x1, "y1": living_room_y1, "x2": living_room_x2, "y2": living_room_y2},
+    "Kitchen": {"x1": kitchen_x1, "y1": kitchen_y1, "x2": kitchen_x2, "y2": kitchen_y2}
+}
+# Define nodes and paths
+nodes = {
+    "Living Room Center": {"x": (living_room_x1 + living_room_x2) // 2, "y": (living_room_y1 + living_room_y2) // 2},
+    "Kitchen Center": {"x": (kitchen_x1 + kitchen_x2) // 2, "y": (kitchen_y1 + kitchen_y2) // 2}
+}
+
+paths = {
+    "Living Room Center to Kitchen Center": ["Living Room Center", "Kitchen Center"]
+}
+
 
 
 # AutoGen configuration (hypothetical setup)
@@ -80,7 +171,12 @@ llm_config = {
             "name": "get_current_position",
             "description": "Get the current position of the robot",
             "parameters": {}
-        }
+        },
+        {
+            "name": "get_map_info",
+            "description": "Retrieve the map and node information",
+            "parameters": {}
+        }       
     ],
     "config_list": config_list,
 }
@@ -94,77 +190,20 @@ user.register_function(
     function_map={
         "move_robot": move_robot,
         "get_current_position": get_current_position,
-        "get_robot_current_room": get_robot_current_room
+        "get_robot_current_room": get_robot_current_room,
+        "get_map_info": get_map_info
     }
 )
-
-# # Example AutoGen interactio n (hypothetical usage)
-# user.initiate_chat(
-#     robot_agent,
-#     message="Move robot to position (30, 30) and tell me which room the robot is in",
-# )
 
 
 # Pygame initialization
 pygame.init()
-
-# Screen dimensions
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
-DASHBOARD_HEIGHT = 150  # Height of the dashboard area
-
-# Colors
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-BLACK = (0, 0, 0)
-
-# Set up the display
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Robot Room Simulator")
-# Calculate the center of the screen
-center_x = SCREEN_WIDTH // 2
-center_y = SCREEN_HEIGHT // 2
-
-# Adjust the room position to be centered
-room_width = 100
-room_height = 100
-living_room = Room("Living Room", center_x - room_width // 2, center_y - room_height // 2, 
-                   center_x + room_width // 2, center_y + room_height // 2)
 
 # Set the robot's initial position to be at the center of the room
 robot = Robot(center_x, center_y, living_room)
 # Font for dashboard text
 font = pygame.font.Font(None, 36)
 
-# Function to draw the dashboard on the screen
-def draw_dashboard():
-    pygame.draw.rect(screen, BLACK, [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
-    current_room_text = font.render(f"Current Room: {get_robot_current_room()}", True, WHITE)
-    current_position_text = font.render(f"Position: {get_current_position()}", True, WHITE)
-    screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
-    screen.blit(current_position_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 50))
-
-
-def draw_room(room):
-    # Draw the room with a contrasting color
-    pygame.draw.rect(screen, (0, 0, 255), [room.x1, room.y1, room.x2 - room.x1, room.y2 - room.y1], 1)
-
-def handle_command_input(command):
-    def llm_thread():
-        # Initiating chat with the AutoGen agent using the provided command
-        response = user.initiate_chat(
-            robot_agent,
-            message=f"Move robot to position {command}"
-        )
-        # Process the response to update the robot's state
-        # Implement the logic based on how your response is structured
-
-    # Start the LLM communication in a separate thread
-    threading.Thread(target=llm_thread).start()
-def draw_button():
-    pygame.draw.rect(screen, button_color, button)  # Draw the button
-    button_text = font.render('Send', True, WHITE)
-    screen.blit(button_text, (button.x + 20, button.y + 5))
 
 # Input box and button setup
 input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
@@ -175,6 +214,7 @@ color_active = pygame.Color('dodgerblue2')
 color = color_inactive
 active = False
 text = ''
+
 # Main Pygame loop
 running = True
 while running:
@@ -207,6 +247,7 @@ while running:
 
     # Draw the room and robot
     draw_room(living_room)
+    draw_room(kitchen) 
     robot_position = robot.current_position()
     pygame.draw.circle(screen, RED, robot_position, 10)
 
@@ -227,10 +268,3 @@ while running:
 
 pygame.quit()
 
-
-# Robot initialization
-center_x = SCREEN_WIDTH // 2
-center_y = SCREEN_HEIGHT // 2
-living_room = Room("Living Room", center_x - 100 // 2, center_y - 100 // 2, 
-                   center_x + 100 // 2, center_y + 100 // 2)
-robot = Robot(center_x, center_y, living_room)
