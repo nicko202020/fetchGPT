@@ -45,7 +45,7 @@ robot = Robot(0, 0, living_room)
 # AutoGen configuration (hypothetical setup)
 config_list = [
     {
-        "model": "gpt-4",
+        "model": "gpt-4-1106-preview",
         "api_key": "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",
     }
 ]
@@ -69,6 +69,7 @@ llm_config = {
             "description": "Get the current position of the robot",
             "parameters": {}
         }
+        
     ],
     "config_list": config_list,
 }
@@ -88,5 +89,5 @@ user.register_function(
 # Example AutoGen interaction (hypothetical usage)
 user.initiate_chat(
     robot_agent,
-    message="Move robot to position (30, 30) and tell me what room the robot is in now",
+    message="Move robot to position (30, 30) and tell me which room you are in",
 )
