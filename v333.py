@@ -4,6 +4,26 @@ import threading
 import random
 import datetime
 
+class Item:
+    def __init__(self, item_id, image_path=None):
+        self.item_id = item_id
+        self.image_path = image_path
+        self.image = pygame.image.load(image_path) if image_path else None
+
+class ItemLocationManager:
+    def __init__(self):
+        self.item_locations = {}  # Key: item_id, Value: node_id
+
+    def update_item_location(self, item_id, node_id):
+        self.item_locations[item_id] = node_id
+
+    def get_item_location(self, item_id):
+        return self.item_locations.get(item_id)
+
+    def remove_item(self, item_id):
+        if item_id in self.item_locations:
+            del self.item_locations[item_id]
+
 class Robot:
     def __init__(self, start_node, graph, logger=None):
         self.current_node = start_node
@@ -11,7 +31,7 @@ class Robot:
         self.logger = logger
         self.x, self.y = self.graph.get_node_coordinates(start_node)
         self.path = [start_node]
-
+        self.held_item = None  # Initialize held_item as None
     def move_to_node(self, target_node):
         path = self.graph.find_path(self.current_node, target_node)
         if path:
@@ -40,6 +60,19 @@ class Robot:
                 return room_name
         return "Unknown room"
 
+    def pick_up_item(self, item_manager, item_id):
+        if item_manager.get_item_location(item_id) == self.current_node:
+            self.held_item = item_id  # Assume item is identified by its ID for simplicity
+            item_manager.remove_item(item_id)
+            if self.logger:
+                self.logger.log(f"Picked up item {item_id} at {self.current_node}")
+
+    def drop_off_item(self, item_manager, item_id, node_id):
+        if self.held_item == item_id:
+            self.held_item = None  # The robot is no longer holding the item
+            item_manager.update_item_location(item_id, node_id)
+            if self.logger:
+                self.logger.log(f"Dropped off item {item_id} at {node_id}")
 class Graph:
     def __init__(self):
         self.nodes = {}
@@ -140,7 +173,6 @@ def initialize_pygame():
     pygame.init()
     SCREEN_WIDTH, SCREEN_HEIGHT = 1920, 1080
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Robot Room Simulator")
     font = pygame.font.Font(None, 36)  # Basic font for text rendering
 
 def create_rooms_and_graph():
@@ -148,11 +180,11 @@ def create_rooms_and_graph():
     global graph, living_room, kitchen  # More rooms can be added as needed
     graph = Graph()  # Assuming Graph class is defined earlier
 
-    # Example room definitions with their positions and adding them to the graph
+    # room definitions and adding them to the graph
     living_room = Room("Living Room", 100, 100, 500, 400, graph)
     kitchen = Room("Kitchen", 510, 100, 910, 400, graph)
 
-    # Adding nodes within rooms (example positions)
+    # Adding nodes within rooms 
     living_room.add_node("LR1", (150, 150))
     living_room.add_node("LR2", (450, 350))
     kitchen.add_node("K1", (550, 150))
@@ -166,8 +198,8 @@ def create_rooms_and_graph():
 def initialize_robot(start_node="LR1"):
     """Initializes the robot at a given start node."""
     global robot, logger
-    logger = Logger()  # Assuming Logger class is defined earlier
-    robot = Robot(start_node, graph, logger)  # Assuming Robot class is defined earlier
+    logger = Logger()  
+    robot = Robot(start_node, graph, logger)  
 
 def setup_simulation():
     """Combines all initialization steps to set up the simulation environment."""
@@ -176,7 +208,7 @@ def setup_simulation():
     initialize_robot()
 def navigate_robot_to_node(target_node):
     """Instructs the robot to navigate to a specified target node."""
-    global robot  # Ensure the robot instance is accessible
+    global robot  
     result = robot.move_to_node(target_node)
     if robot.logger:
         robot.logger.log_info(f"Navigation result: {result}")
@@ -226,6 +258,15 @@ def draw_path(path):
             start_pos = graph.get_node_coordinates(path[i])
             end_pos = graph.get_node_coordinates(path[i+1])
             pygame.draw.line(screen, (0, 255, 0), start_pos, end_pos, 2)
+
+def draw_item(screen, position, color, size):
+    """Draws a square shape at the given position."""
+    x, y = position
+    # Define the top-left corner of the square based on the desired size
+    top_left_x = x - size // 2
+    top_left_y = y - size // 2
+    # Draw a square using pygame.draw.rect
+    pygame.draw.rect(screen, color, (top_left_x, top_left_y, size, size))
 
 def highlight_decision_point(node):
     """Highlights a node where a decision is made."""
@@ -363,15 +404,33 @@ def draw_robot_path(robot, graph, color=(250, 255, 0)):
             start_pos = graph.get_node_coordinates(robot.path[i])
             end_pos = graph.get_node_coordinates(robot.path[i + 1])
             pygame.draw.line(screen, color, start_pos, end_pos, 5)
-# Assuming the necessary imports and initial setup
-# AutoGen configuration (hypothetical setup)
+
+def render_items(item_manager, graph, screen, robot):
+    for item_id, node_id in item_manager.item_locations.items():
+        node_coordinates = graph.get_node_coordinates(node_id)
+        # Check if the item is not held by the robot
+        if not (robot.held_item and robot.held_item.item_id == item_id):
+            draw_item(screen, node_coordinates, (255, 255, 0), 20)  # Yellow color, size of 20
+
+global item_manager
+
+def pick_up_item_robot(item_id):
+    """Global function to command the robot to pick up an item."""
+    global robot
+    return robot.pick_up_item(item_manager, item_id)
+
+def drop_off_item_robot(item_id, node_id):
+    """Global function to command the robot to drop off an item."""
+    global robot
+    return robot.drop_off_item(item_manager, item_id, node_id)
+# AutoGen configuration
 config_list = [
     {
         "model": "gpt-4-1106-preview",
         "api_key": "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",
     }
 ]
-# Configuration for the autogen agent's capabilities
+#Autogen agent function descriptoons
 llm_config = {
     "functions": [
         {
@@ -409,13 +468,36 @@ llm_config = {
                     "end_room": {"type": "string", "description": "Name of the destination room"}
                 },
                 "required": ["end_room"]
-            }
-        }
+            },
+        },
+        {
+            "name": "pick_up_item_robot",
+            "description": "Instruct the robot to pick up an item at its current node",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "Identifier of the item to pick up"}
+                },
+                "required": ["item_id"]
+            },
+        },
+        {
+            "name": "drop_off_item_robot",
+            "description": "Instruct the robot to drop off an item at a specified node",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "node_id": {"type": "string", "description": "Node identifier where to drop off the item"},
+                    "item_id": {"type": "string", "description": "Identifier of the item to drop off"}
+                },
+                "required": ["node_id", "item_id"]
+            },
+        },
     ],
-    "config_list": config_list,  # Ensure config_list is defined appropriately
+    "config_list": config_list,  
 }
 
-# Initialize AutoGen agents with updated or additional functionalities if needed
+# Initialize AutoGen agents
 user = autogen.UserProxyAgent(name="User", human_input_mode="NEVER", max_consecutive_auto_reply=10)
 robot_agent = autogen.AssistantAgent(name="Robot", llm_config=llm_config)
 
@@ -423,28 +505,27 @@ robot_agent = autogen.AssistantAgent(name="Robot", llm_config=llm_config)
 # Ensure each referenced function is defined and correctly implemented in the project
 user.register_function(
     function_map={
-        "move_robot": move_robot,  # Function to move the robot
-        "get_current_position": get_current_position,  # Function to get the robot's current position
-        "get_robot_current_room": get_robot_current_room,  # Function to get the robot's current room
-        "get_map_info": get_map_info,  # Uncomment and define this function if needed
-        "get_path_to_room": get_path_to_room  # Function to get a path to a specified room
+        "move_robot": move_robot,  # Presumed to correctly handle its context internally
+        "get_current_position": get_current_position,  # Ditto
+        "get_robot_current_room": get_robot_current_room,  # Ditto
+        "get_map_info": get_map_info,  # Presumed available and correctly scoped
+        "get_path_to_room": get_path_to_room,  # Presumed to correctly handle its context internally
+        "pick_up_item_robot": pick_up_item_robot,  # Now also presumed to handle context and parameters correctly
+        "drop_off_item_robot": drop_off_item_robot,  # Ditto
     }
 )
 
-# Integration within the main loop or event handling system
-# Make sure to call the appropriate agent functions based on user input or simulation events
-# Additional Setup and Initialization
+
 
 # Pygame window, colors, and fonts initialization
 pygame.init()
 SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Robot Room Simulator")
 font = pygame.font.Font(None, 36)  # Basic font for text rendering
 WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
 
 # Initialize the graph for navigation
-graph = Graph()  # Assuming Graph class is defined
+graph = Graph() 
 
 # Create rooms and add them to the graph
 living_room = Room("Living Room", 100, 100, 500, 400, graph)
@@ -462,9 +543,11 @@ kitchen.add_edge("K1", "K2")
 graph.add_edge("LR2", "K1")  # Assuming doors or pathways between rooms
 
 # Initialize the robot at a given start node
-logger = Logger()  # Assuming Logger class is defined
-robot = Robot("LR1", graph, logger)  # Assuming Robot class is defined
-
+logger = Logger()  
+robot = Robot("LR1", graph, logger)  
+item_manager = ItemLocationManager()
+water_item = Item('water')
+item_manager.update_item_location('water', 'LR1')  # Assuming 'LR1' is a valid node ID
 # Main loop setup
 running = True
 active = False  # For text input box state
@@ -490,7 +573,8 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if active:
                 if event.key == pygame.K_RETURN:
-                    execute_command(text)  # Assuming execute_command function exists
+                    # Here you might handle the command, possibly affecting the robot and items
+                    execute_command(text)  # Modify to execute commands
                     text = ''
                 elif event.key == pygame.K_BACKSPACE:
                     text = text[:-1]
@@ -498,23 +582,29 @@ while running:
                     text += event.unicode
 
     # Fill the screen with white
-    screen.fill(WHITE)
+    screen.fill(BLACK)
     draw_nodes(graph)  
     draw_edges(graph, screen)  
     draw_room(living_room)  
     draw_room(kitchen)
+
+    for item_id, node_id in item_manager.item_locations.items():
+        if not robot.held_item or robot.held_item != item_id:
+            item_position = graph.get_node_coordinates(node_id)
+            draw_item(screen, item_position, (255, 255, 0), 20)  # Drawing item
+
     draw_robot_path(robot, graph)  
     draw_robot(robot)  
     # Optional: draw planned path or highlight decision points here
 
     # Draw the dashboard and input box
-    draw_dashboard()  # Assuming draw_dashboard function exists
+    draw_dashboard()  
     txt_surface = font.render(text, True, color)
     width = max(200, txt_surface.get_width() + 10)
     input_box.w = width
     screen.blit(txt_surface, (input_box.x + 5, input_box.y + 5))
     pygame.draw.rect(screen, color, input_box, 2)
 
-    pygame.display.flip()
+    pygame.display.flip()   
 
 pygame.quit()
