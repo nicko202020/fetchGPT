@@ -73,6 +73,9 @@ class Robot:
             item_manager.update_item_location(item_id, node_id)
             if self.logger:
                 self.logger.log(f"Dropped off item {item_id} at {node_id}")
+
+    def get_item_location(self, item_id):
+        return self.item_locations.get(item_id, None)
 class Graph:
     def __init__(self):
         self.nodes = {}
@@ -423,6 +426,11 @@ def drop_off_item_robot(item_id, node_id):
     """Global function to command the robot to drop off an item."""
     global robot
     return robot.drop_off_item(item_manager, item_id, node_id)
+
+def get_item_location_robot(item_id):
+    """Global function to get the location of an item."""
+    global item_manager
+    return item_manager.get_item_location(item_id)
 # AutoGen configuration
 config_list = [
     {
@@ -493,6 +501,17 @@ llm_config = {
                 "required": ["node_id", "item_id"]
             },
         },
+        {
+            "name": "get_item_location_robot",
+            "description": "Retrieve the location of a specified item",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_id": {"type": "string", "description": "Identifier of the item to locate"}
+                },
+                "required": ["item_id"]
+                },
+        },
     ],
     "config_list": config_list,  
 }
@@ -511,7 +530,8 @@ user.register_function(
         "get_map_info": get_map_info,  # Presumed available and correctly scoped
         "get_path_to_room": get_path_to_room,  # Presumed to correctly handle its context internally
         "pick_up_item_robot": pick_up_item_robot,  # Now also presumed to handle context and parameters correctly
-        "drop_off_item_robot": drop_off_item_robot,  # Ditto
+        "drop_off_item_robot": drop_off_item_robot,  
+        "get_item_location_robot": get_item_location_robot,
     }
 )
 
