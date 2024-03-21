@@ -5,11 +5,23 @@ import random
 import datetime
 
 class Item:
-    def __init__(self, item_id, image_path=None):
+    def __init__(self, item_id, image_path=None, target_size=(50, 50)):
         self.item_id = item_id
         self.image_path = image_path
-        self.image = pygame.image.load(image_path) if image_path else None
+        self.image = pygame.image.load(image_path).convert_alpha() if image_path else None
+        if self.image:
+            self.image = pygame.transform.scale(self.image, target_size)  # Resize the image
 
+    def draw(self, screen, position, is_held=False):
+        if self.image:
+            if is_held:
+                screen.blit(self.image, position)
+            else:
+                # Center the image above the node by adjusting both x and y
+                # The x-coordinate needs to be offset by half the image's width
+                # The y-coordinate is decreased by the image's height to move it above
+                offset_position = (position[0] - self.image.get_width() // 2, position[1] - self.image.get_height())
+                screen.blit(self.image, offset_position)
 class ItemLocationManager:
     def __init__(self):
         self.item_locations = {}  # Key: item_id, Value: node_id
@@ -23,14 +35,46 @@ class ItemLocationManager:
     def remove_item(self, item_id):
         if item_id in self.item_locations:
             del self.item_locations[item_id]
+    def get_item_location(self, item_id):
+        return self.item_locations.get(item_id, None)
+    def get_all_items(self):
+        """Returns a dictionary of all item IDs and their locations."""
+        return self.item_locations
+class Logger:
+    def __init__(self, log_file="simulation_log.txt"):
+        self.log_file = log_file
+        with open(self.log_file, "w") as file:
+            file.write("Simulation Log\n")
 
+    def log(self, message):
+        with open(self.log_file, "a") as file:
+            file.write(f"{message}\n")
+
+    def log_action(self, action, details=""):
+        """Logs an action with an optional detailed description."""
+        action_message = f"Action: {action}"
+        if details:
+            action_message += f", Details: {details}"
+        self.log(action_message)
+
+    def log_error(self, error_message):
+        """Logs an error message."""
+        self.log(f"ERROR: {error_message}")
+
+    def log_info(self, info_message):
+        """Logs an informational message."""
+        self.log(f"INFO: {info_message}")
 class Robot:
-    def __init__(self, start_node, graph, logger=None):
+    def __init__(self, start_node, graph, image_path=None, logger=None):
         self.current_node = start_node
         self.graph = graph
         self.logger = logger
         self.x, self.y = self.graph.get_node_coordinates(start_node)
-        self.path = [start_node]
+        self.path = []
+        self.image = pygame.image.load(image_path).convert_alpha() if image_path else None
+        if self.image:
+            # Optionally, scale the image
+            self.image = pygame.transform.scale(self.image, (50, 50))  # Resize to 50x50 or any appropriate size
         self.held_item = None  # Initialize held_item as None
     def move_to_node(self, target_node):
         path = self.graph.find_path(self.current_node, target_node)
@@ -51,7 +95,7 @@ class Robot:
 
     def current_position(self):
         """Returns the current position of the robot."""
-        return [self.x, self.y]
+        return self.current_node
 
     def current_room(self):
         """Determines the current room based on the robot's node."""
@@ -62,20 +106,19 @@ class Robot:
 
     def pick_up_item(self, item_manager, item_id):
         if item_manager.get_item_location(item_id) == self.current_node:
-            self.held_item = item_id  # Assume item is identified by its ID for simplicity
+            self.held_item = items[item_id]  # Assume item is identified by its ID for simplicity
             item_manager.remove_item(item_id)
             if self.logger:
                 self.logger.log(f"Picked up item {item_id} at {self.current_node}")
 
     def drop_off_item(self, item_manager, item_id, node_id):
-        if self.held_item == item_id:
+        if self.held_item == items[item_id]:
             self.held_item = None  # The robot is no longer holding the item
             item_manager.update_item_location(item_id, node_id)
             if self.logger:
                 self.logger.log(f"Dropped off item {item_id} at {node_id}")
 
-    def get_item_location(self, item_id):
-        return self.item_locations.get(item_id, None)
+
 class Graph:
     def __init__(self):
         self.nodes = {}
@@ -144,31 +187,6 @@ class Room:
         """Get the coordinates of a specific node within the room."""
         return self.graph.get_node_coordinates(node_id)
 
-class Logger:
-    def __init__(self, log_file="simulation_log.txt"):
-        self.log_file = log_file
-        with open(self.log_file, "w") as file:
-            file.write("Simulation Log\n")
-
-    def log(self, message):
-        with open(self.log_file, "a") as file:
-            file.write(f"{message}\n")
-
-    def log_action(self, action, details=""):
-        """Logs an action with an optional detailed description."""
-        action_message = f"Action: {action}"
-        if details:
-            action_message += f", Details: {details}"
-        self.log(action_message)
-
-    def log_error(self, error_message):
-        """Logs an error message."""
-        self.log(f"ERROR: {error_message}")
-
-    def log_info(self, info_message):
-        """Logs an informational message."""
-        self.log(f"INFO: {info_message}")
-
 
 def initialize_pygame():
     """Initializes the Pygame environment, including display settings and resources."""
@@ -180,29 +198,47 @@ def initialize_pygame():
 
 def create_rooms_and_graph():
     """Creates room objects and initializes the graph for navigation."""
-    global graph, living_room, kitchen  # More rooms can be added as needed
-    graph = Graph()  # Assuming Graph class is defined earlier
+    global graph, living_room, kitchen, items, item_manager
+    
+    # Initialize the graph and item manager
+    graph = Graph()
+    item_manager = ItemLocationManager()
 
-    # room definitions and adding them to the graph
-    living_room = Room("Living Room", 100, 100, 500, 400, graph)
-    kitchen = Room("Kitchen", 510, 100, 910, 400, graph)
+    # Define room boundaries and initialize rooms
+    living_room = Room("living Room", 100, 100, 500, 400, graph)
+    kitchen = Room("kitchen", 510, 100, 910, 400, graph)
 
-    # Adding nodes within rooms 
+    # Adding nodes within the Living Room
     living_room.add_node("LR1", (150, 150))
-    living_room.add_node("LR2", (450, 350))
+    living_room.add_node("LR2", (450, 150))
+    living_room.add_node("LR3", (150, 350))
+    living_room.add_node("LR4", (450, 350))
+
+    # Adding nodes within the Kitchen
     kitchen.add_node("K1", (550, 150))
-    kitchen.add_node("K2", (850, 350))
+    kitchen.add_node("K2", (850, 150))
+    kitchen.add_node("K3", (550, 350))
+    kitchen.add_node("K4", (850, 350))
 
-    # Connecting nodes with edges to represent possible paths
+    # Connecting nodes with edges to represent possible paths within rooms
     living_room.add_edge("LR1", "LR2")
-    kitchen.add_edge("K1", "K2")
-    graph.add_edge("LR2", "K1")  # Assuming doors or pathways between rooms
+    living_room.add_edge("LR2", "LR4")
+    living_room.add_edge("LR3", "LR4")
+    living_room.add_edge("LR1", "LR3")
 
+    kitchen.add_edge("K1", "K2")
+    kitchen.add_edge("K2", "K4")
+    kitchen.add_edge("K3", "K4")
+    kitchen.add_edge("K1", "K3")
+
+    # Connecting a node between the two rooms
+    graph.add_edge("LR4", "K1")
 def initialize_robot(start_node="LR1"):
     """Initializes the robot at a given start node."""
     global robot, logger
     logger = Logger()  
-    robot = Robot(start_node, graph, logger)  
+    image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
+    robot = Robot(start_node, graph, image_path, logger)  
 
 def setup_simulation():
     """Combines all initialization steps to set up the simulation environment."""
@@ -250,9 +286,14 @@ def draw_room(room):
     """Draws a room on the screen."""
     pygame.draw.rect(screen, (0, 0, 255), [room.bounds[0], room.bounds[1], room.bounds[2] - room.bounds[0], room.bounds[3] - room.bounds[1]], 1)
 
-def draw_robot(robot):
-    """Draws the robot at its current position."""
-    pygame.draw.circle(screen, (255, 0, 0), (int(robot.x), int(robot.y)), 10)
+def draw_robot(robot, screen):
+    if robot.image:
+        # Calculate the top-left corner coordinates to center the image on the robot's position
+        image_rect = robot.image.get_rect(center=(int(robot.x), int(robot.y)))
+        screen.blit(robot.image, image_rect.topleft)
+    else:
+        # Fallback to a simple circle if no image is provided
+        pygame.draw.circle(screen, (255, 0, 0), (int(robot.x), int(robot.y)), 10)
 
 def draw_path(path):
     """Draws the path the robot plans to take."""
@@ -285,6 +326,7 @@ def draw_subtask_paths(subtasks):
         pygame.draw.line(screen, (255, 165, 0), start_pos, end_pos, 1)
 
 def draw_dashboard():
+    global robot, font, SCREEN_HEIGHT  # Ensure all necessary globals are referenced
     """Draws the dashboard area with information about the robot's status."""
     pygame.draw.rect(screen, (0, 0, 0), [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
     current_room_text = font.render(f"Current Room: {get_current_robot_room()}", True, (255, 255, 255))
@@ -338,7 +380,17 @@ def execute_command(command):
 
     # Start the LLM communication in a separate thread
     threading.Thread(target=llm_thread).start()
-
+def log_message(message):
+    global conversation_log
+    conversation_log.append(message)
+    if len(conversation_log) > MAX_MESSAGES:
+        conversation_log.pop(0)  # Remove the oldest message
+def draw_conversation(screen, font, conversation_log):
+    start_y = 20  # Starting Y position to draw from
+    line_height = 20  # Vertical space between lines
+    for i, message in enumerate(conversation_log):
+        text_surface = font.render(message, True, (255, 255, 255))
+        screen.blit(text_surface, (20, start_y + i * line_height))
 def log_info(message):
     """Logs informational messages to the log file."""
     if logger:  # Assuming 'logger' is the global Logger instance
@@ -369,13 +421,25 @@ def get_robot_current_room():
     return robot.current_room()
 
 def get_path_to_room(end_room):
+    """Calculates a path to a specified room without moving the robot."""
     global robot, graph
     if end_room in graph.nodes:
+        # Pick an arbitrary node within the target room as the destination.
         start_node = robot.current_node
-        end_node = next(iter(graph.nodes[end_room]))  # Assume we just pick the first node
-        return robot.move_to_node(end_node)
-    return []
+        end_node = next(iter(graph.nodes[end_room]))  # Pick an arbitrary node within the target room.
 
+        # Find the path from the current node to the destination node.
+        path = graph.find_path(start_node, end_node)
+
+        # Log the found path for debugging or informational purposes.
+        if robot.logger:
+            robot.logger.log_info(f"Calculated path to room '{end_room}': {path}")
+        return path
+    else:
+        # Handle the case where the specified room is unknown.
+        if robot.logger:
+            robot.logger.log_error(f"Path to unknown room '{end_room}' requested.")
+        return "Unknown room"
 def get_map_info():
     """
     Retrieves information about the map including rooms, their coordinates,
@@ -431,6 +495,24 @@ def get_item_location_robot(item_id):
     """Global function to get the location of an item."""
     global item_manager
     return item_manager.get_item_location(item_id)
+def get_all_items_robot():
+    """Global function to access all items and their locations from the item manager."""
+    return item_manager.get_all_items()
+
+def draw_item_on_map(screen, robot, item_manager, items, graph):
+    for item_id, node_id in item_manager.get_all_items().items():
+        item = items.get(item_id)
+        
+        # Adjust the drawing based on whether the robot holds the item
+        if robot.held_item and robot.held_item.item_id == item_id:
+            # Center the item on the robot's position
+            robot_position = (robot.x, robot.y - item.image.get_height() // 2)
+            item.draw(screen, robot_position, is_held=True)
+        else:
+            # Draw the item north of its node without touching it
+            node_position = graph.get_node_coordinates(node_id)
+            offset_position = (node_position[0], node_position[1] - item.image.get_height() // 2)
+            item.draw(screen, offset_position, is_held=False)
 # AutoGen configuration
 config_list = [
     {
@@ -512,6 +594,11 @@ llm_config = {
                 "required": ["item_id"]
                 },
         },
+        {
+    "name": "get_all_items_robot",
+    "description": "Retrieve all available items and their locations",
+    "parameters": {},
+        },
     ],
     "config_list": config_list,  
 }
@@ -532,43 +619,41 @@ user.register_function(
         "pick_up_item_robot": pick_up_item_robot,  # Now also presumed to handle context and parameters correctly
         "drop_off_item_robot": drop_off_item_robot,  
         "get_item_location_robot": get_item_location_robot,
+        "get_all_items_robot": get_all_items_robot,
     }
 )
 
 
-
+setup_simulation()
+create_rooms_and_graph()
 # Pygame window, colors, and fonts initialization
-pygame.init()
 SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 font = pygame.font.Font(None, 36)  # Basic font for text rendering
 WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
 
-# Initialize the graph for navigation
-graph = Graph() 
 
-# Create rooms and add them to the graph
-living_room = Room("Living Room", 100, 100, 500, 400, graph)
-kitchen = Room("Kitchen", 510, 100, 910, 400, graph)
 
-# Add nodes to rooms
-living_room.add_node("LR1", (150, 150))
-living_room.add_node("LR2", (450, 350))
-kitchen.add_node("K1", (550, 150))
-kitchen.add_node("K2", (850, 350))
 
-# Add edges between nodes to represent possible paths
-living_room.add_edge("LR1", "LR2")
-kitchen.add_edge("K1", "K2")
-graph.add_edge("LR2", "K1")  # Assuming doors or pathways between rooms
 
+initialize_robot("LR1")
 # Initialize the robot at a given start node
 logger = Logger()  
-robot = Robot("LR1", graph, logger)  
+MAX_MESSAGES = 5  # Maximum number of messages to display
+conversation_log = []  # Holds the most recent conversation lines
+robot_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
+robot = Robot("LR1", graph, robot_image_path, logger)
+ 
 item_manager = ItemLocationManager()
-water_item = Item('water')
-item_manager.update_item_location('water', 'LR1')  # Assuming 'LR1' is a valid node ID
-# Main loop setup
+# Initialize items and their locations
+items = {
+    'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\3105807.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+}
+
+# Update the locations for the items
+item_manager.update_item_location('water', 'LR1')
+item_manager.update_item_location('banana', 'K4')
 running = True
 active = False  # For text input box state
 text = ''  # For storing input text
@@ -608,15 +693,15 @@ while running:
     draw_room(living_room)  
     draw_room(kitchen)
 
-    for item_id, node_id in item_manager.item_locations.items():
-        if not robot.held_item or robot.held_item != item_id:
-            item_position = graph.get_node_coordinates(node_id)
-            draw_item(screen, item_position, (255, 255, 0), 20)  # Drawing item
+    # Draw items on the map
+    draw_item_on_map(screen, robot, item_manager, items, graph)
 
     draw_robot_path(robot, graph)  
-    draw_robot(robot)  
+    draw_robot(robot, screen)  
     # Optional: draw planned path or highlight decision points here
+    # Draw the conversation
 
+    # draw_conversation(screen, font, conversation_log)
     # Draw the dashboard and input box
     draw_dashboard()  
     txt_surface = font.render(text, True, color)
