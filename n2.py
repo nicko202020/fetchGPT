@@ -113,11 +113,25 @@ class Robot:
         return "Unknown room"
 
     def pick_up_item(self, item_manager, item_id):
+        """Attempts to pick up a specified item.
+
+        Args:
+            item_manager (ItemLocationManager): The manager controlling item locations.
+            item_id (str): The ID of the item to pick up.
+
+        Returns:
+            str: A message indicating the result of the pick-up attempt.
+        """
         if item_manager.get_item_location(item_id) == self.current_node:
             self.held_item = items[item_id]  # Assume item is identified by its ID for simplicity
             item_manager.remove_item(item_id)
             if self.logger:
                 self.logger.log(f"Picked up item {item_id} at {self.current_node}")
+            return f"Picked up item {item_id}"
+        else:
+            if self.logger:
+                self.logger.log(f"Failed to pick up item {item_id} at {self.current_node}")
+            return f"Failed to pick up item {item_id}. Item not at robot's current location."
 
     def drop_off_item(self, item_manager, item_id, node_id):
         if self.held_item == items[item_id]:
@@ -553,8 +567,8 @@ def get_room_nodes(room_name):
         return "Room not found"
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
-    global user  # Assuming 'user' is globally accessible
-    return user.node_id
+    global me  # Assuming 'user' is globally accessible
+    return me.node_id
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
     for item_id, node_id in item_manager.get_all_items().items():
         item = items.get(item_id)
@@ -600,13 +614,13 @@ llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Moves the robot sequentially to the specified target node.",
+            "description": "Directs the robot to move to the specified node within the environment.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The identifier of the target node to which the robot will move."
+                        "description": "The node identifier where the robot should move to."
                     }
                 },
                 "required": ["target_node"]
@@ -614,13 +628,13 @@ llm_config = {
         },
         {
             "name": "get_room_nodes",
-            "description": "Retrieves all node identifiers within a specified room.",
+            "description": "Lists all nodes within a given room to support navigation or analysis tasks.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "room_name": {
                         "type": "string",
-                        "description": "The name of the room for which nodes are requested."
+                        "description": "The room name to retrieve its associated nodes."
                     }
                 },
                 "required": ["room_name"]
@@ -628,18 +642,18 @@ llm_config = {
         },
         {
             "name": "get_current_position",
-            "description": "Obtains the current position of the robot, identified by the node it occupies.",
+            "description": "Identifies the robot's current node to help determine its starting point for navigation.",
             "parameters": {}
         },
         {
             "name": "get_path",
-            "description": "Determines a path from the robot's current location to a specified destination within the environment.",
+            "description": "Calculates the optimal path for the robot from its current location to the target destination.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "destination": {
                         "type": "string",
-                        "description": "The destination for the path calculation, which can be a room or node identifier."
+                        "description": "The target destination for path calculation, which could be either a node or a room name."
                     }
                 },
                 "required": ["destination"]
@@ -647,18 +661,18 @@ llm_config = {
         },
         {
             "name": "get_user_node",
-            "description": "Retrieves the node identifier where the user is currently located.",
+            "description": "Acquires the current node location of the user within the environment.",
             "parameters": {}
         },
         {
             "name": "pick_up_item_robot",
-            "description": "Commands the robot to pick up a specified item at its current node.",
+            "description": "Enables the robot to pick up a specified item present at its current node.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item that the robot should pick up."
+                        "description": "The identifier of the item to be picked up."
                     }
                 },
                 "required": ["item_id"]
@@ -666,17 +680,17 @@ llm_config = {
         },
         {
             "name": "drop_off_item_robot",
-            "description": "Commands the robot to drop off a specified item at a designated node.",
+            "description": "Allows the robot to drop off an item at a specific node location.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "node_id": {
                         "type": "string",
-                        "description": "The node where the item will be dropped off."
+                        "description": "The destination node for dropping off the item."
                     },
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item to be dropped off."
+                        "description": "The identifier of the item to be dropped off."
                     }
                 },
                 "required": ["node_id", "item_id"]
@@ -684,35 +698,21 @@ llm_config = {
         },
         {
             "name": "get_item_location_robot",
-            "description": "Retrieves the node at which a specified item is currently located.",
+            "description": "Determines the which node the specified item is at.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item for which the location is being requested."
+                        "description": "The name of the item."
                     }
                 },
                 "required": ["item_id"]
             }
-        },
-        {
-            "name": "get_node_info",
-            "description": "Provides information about all nodes within a specified room.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "room_name": {
-                        "type": "string",
-                        "description": "The name of the room for which node information is requested."
-                    }
-                },
-                "required": ["room_name"]
-            }
-        },
+        }
     ],
-    "config_list": config_list,  
-}
+    "config_list": config_list  
+} 
 
 # Initialize AutoGen agents
 user = autogen.UserProxyAgent(name="User", human_input_mode="NEVER",is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"), max_consecutive_auto_reply=30)
