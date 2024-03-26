@@ -664,13 +664,13 @@ llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Moves the robot sequentially to the specified target node. If the node is blocked, it means you are unable to move to that node",
+            "description": "Relocates the robot to the target node step by step, checking for obstructions. A blocked node prevents progression.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The identifier of the target node to which the robot will move."
+                        "description": " A unique identifier for the node the robot should navigate to."
                     }
                 },
                 "required": ["target_node"]
@@ -678,13 +678,13 @@ llm_config = {
         },
         {
             "name": "get_room_nodes",
-            "description": "List of nodes in the room",
+            "description": "Retrieves a list of all nodes within the specified room, aiding in room-based navigation and planning",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "room_name": {
                         "type": "string",
-                        "description": "The name of the room."
+                        "description": "The designation of the room from which to obtain node information."
                     }
                 },
                 "required": ["room_name"]
@@ -697,13 +697,13 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Determines a path from the robot's current node to a target node",
+            "description": "Computes a navigational route from the robot's current node to a specified target, considering the layout.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "destination": {
                         "type": "string",
-                        "description": "The target node."
+                        "description": "The endpoint node for the calculated path."
                     }
                 },
                 "required": ["destination"]
@@ -711,18 +711,18 @@ llm_config = {
         },
         {
             "name": "get_user_node",
-            "description": "Retrieves the node identifier where the user is currently located.",
+            "description": "Determines the current node position of the user, essential for direct interactions or deliveries",
             "parameters": {}
         },
         {
             "name": "pick_up_item_robot",
-            "description": "Commands the robot to pick up a specified item at its current node.",
+            "description": "Instructs the robot to collect a designated item at its present location, essential for retrieval tasks.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item that the robot should pick up."
+                        "description": "The unique identifier for the item to be collected."
                     }
                 },
                 "required": ["item_id"]
@@ -730,17 +730,17 @@ llm_config = {
         },
         {
             "name": "drop_off_item_robot",
-            "description": "Commands the robot to drop off a specified item at a designated node.",
+            "description": "Commands the robot to leave a specified item at a designated node, crucial for delivery tasks.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "node_id": {
                         "type": "string",
-                        "description": "The node where the item will be dropped off."
+                        "description": "The node at which to leave the item."
                     },
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item to be dropped off."
+                        "description": "The specific item to be dropped off."
                     }
                 },
                 "required": ["node_id", "item_id"]
@@ -748,13 +748,13 @@ llm_config = {
         },
         {
             "name": "get_item_location_robot",
-            "description": "Retrieves the node at which a specified item is currently located.",
+            "description": "Finds the current node location of a specified item, pivotal for planning retrieval paths.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The ID of the item for which the location is being requested."
+                        "description": "The unique identifier of the item whose location is queried."
                     }
                 },
                 "required": ["item_id"]
@@ -785,12 +785,12 @@ is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstri
 max_consecutive_auto_reply=30)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
-system_message="""Role you are a robot who helps around the house by delivering items to a user.
-- Upon receiving the task, you will come up with a plan and execute it. 
-- Identify key nodes from task. Remember there is a distinction between a node and querying the room for what nodes are in it. 
-- You are not allowed to move directly to the target node unless that node's edge connects to your current node. 
-- The destination node 
-If the task is succesful, you will reply with TERMINATE
+system_message="""Role: You are a robotic assistant tasked with delivering items within a household. 
+On receiving a directive, your objectives are:
+- Ascertain crucial nodes based on the directive, differentiating between 'node' and 'room' queries.
+- Navigate the environment methodically, ensuring each movement is to an adjacent, unblocked node.
+- Upon task completion, confirm with 'TERMINATE'.
+Understand that your actions should demonstrate adaptability and precision, embodying the essence of a helpful and efficient household robot
 """)
 
 # Register functions with the UserProxyAgent
