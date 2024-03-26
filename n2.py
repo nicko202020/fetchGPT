@@ -77,6 +77,7 @@ class Robot:
         self.current_node = start_node
         self.graph = graph
         self.logger = logger
+        self.blockage_encountered= False
         self.x, self.y = self.graph.get_node_coordinates(start_node)
         self.path = []
         self.image = pygame.image.load(image_path).convert_alpha() if image_path else None
@@ -88,12 +89,21 @@ class Robot:
         path = self.graph.find_path(self.current_node, target_node)
         if path:
             for node in path[1:]:
+                # Check for blockage only if it hasn't been encountered yet
+                if not self.blockage_encountered and random.choice([True, False, False]):  # Random blockage
+                    self.blockage_encountered = True  # Ensure blockage happens only once
+                    if self.logger:
+                        self.logger.log(f"Node {node} blocked")
+                    return f"Node {node} blocked"
+
+                # Move the robot to the next node if no blockage
                 self.current_node = node
                 self.x, self.y = self.graph.get_node_coordinates(node)
                 if self.logger:
                     self.logger.log(f"Moved to node {node} at position {self.x}, {self.y}")
             return f"Moved to {target_node}"
         return "Path not found"
+
 
     def move_to_coordinates(self, x, y):
         """Updates the robot's position based on coordinates. Not typically used with graph navigation."""
@@ -264,7 +274,7 @@ def initialize_robot(start_node="lr1"):
     """Initializes the robot at a given start node."""
     global robot, logger
     logger = Logger()  
-    image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
+    image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
     robot = Robot(start_node, graph, image_path, logger)  
 
 def setup_simulation():
@@ -609,18 +619,19 @@ config_list = [
         "api_key": "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",
     }
 ]
+
 #Autogen agent function descriptoons
 llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Directs the robot to move to the specified node within the environment.",
+            "description": "Moves the robot sequentially to the specified target node.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The node identifier where the robot should move to."
+                        "description": "The identifier of the target node to which the robot will move."
                     }
                 },
                 "required": ["target_node"]
@@ -628,13 +639,13 @@ llm_config = {
         },
         {
             "name": "get_room_nodes",
-            "description": "Lists all nodes within a given room to support navigation or analysis tasks.",
+            "description": "Retrieves all node identifiers within a specified room.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "room_name": {
                         "type": "string",
-                        "description": "The room name to retrieve its associated nodes."
+                        "description": "The name of the room for which nodes are requested."
                     }
                 },
                 "required": ["room_name"]
@@ -642,18 +653,18 @@ llm_config = {
         },
         {
             "name": "get_current_position",
-            "description": "Identifies the robot's current node to help determine its starting point for navigation.",
+            "description": "Obtains the current position of the robot, identified by the node it occupies.",
             "parameters": {}
         },
         {
             "name": "get_path",
-            "description": "Calculates the optimal path for the robot from its current location to the target destination.",
+            "description": "Determines a path from the robot's current node to a destinatio node",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "destination": {
                         "type": "string",
-                        "description": "The target destination for path calculation, which could be either a node or a room name."
+                        "description": "The destination node."
                     }
                 },
                 "required": ["destination"]
@@ -661,18 +672,18 @@ llm_config = {
         },
         {
             "name": "get_user_node",
-            "description": "Acquires the current node location of the user within the environment.",
+            "description": "Retrieves the node identifier where the user is currently located.",
             "parameters": {}
         },
         {
             "name": "pick_up_item_robot",
-            "description": "Enables the robot to pick up a specified item present at its current node.",
+            "description": "Commands the robot to pick up a specified item at its current node.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The identifier of the item to be picked up."
+                        "description": "The ID of the item that the robot should pick up."
                     }
                 },
                 "required": ["item_id"]
@@ -680,17 +691,17 @@ llm_config = {
         },
         {
             "name": "drop_off_item_robot",
-            "description": "Allows the robot to drop off an item at a specific node location.",
+            "description": "Commands the robot to drop off a specified item at a designated node.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "node_id": {
                         "type": "string",
-                        "description": "The destination node for dropping off the item."
+                        "description": "The node where the item will be dropped off."
                     },
                     "item_id": {
                         "type": "string",
-                        "description": "The identifier of the item to be dropped off."
+                        "description": "The ID of the item to be dropped off."
                     }
                 },
                 "required": ["node_id", "item_id"]
@@ -698,25 +709,47 @@ llm_config = {
         },
         {
             "name": "get_item_location_robot",
-            "description": "Determines the which node the specified item is at.",
+            "description": "Retrieves the node at which a specified item is currently located.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "item_id": {
                         "type": "string",
-                        "description": "The name of the item."
+                        "description": "The ID of the item for which the location is being requested."
                     }
                 },
                 "required": ["item_id"]
             }
-        }
+        },
+        # {
+        #     "name": "get_node_info",
+        #     "description": "Provides information about all nodes within a specified room.",
+        #     "parameters": {
+        #         "type": "object",
+        #         "properties": {
+        #             "room_name": {
+        #                 "type": "string",
+        #                 "description": "The name of the room for which node information is requested."
+        #             }
+        #         },
+        #         "required": ["room_name"]
+        #     }
+        # },
     ],
-    "config_list": config_list  
-} 
-
-# Initialize AutoGen agents
-user = autogen.UserProxyAgent(name="User", human_input_mode="NEVER",is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"), max_consecutive_auto_reply=30)
-robot_agent = autogen.AssistantAgent(name="Robot", llm_config=llm_config, system_message="You are a robot who can pick up and put down items to help deliver things around the house")
+    "config_list": config_list,  
+}
+user = autogen.UserProxyAgent(name="User", 
+human_input_mode="NEVER",
+is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"), 
+max_consecutive_auto_reply=15)
+robot_agent = autogen.AssistantAgent(name="Robot", 
+llm_config=llm_config, 
+system_message="""Role you are a robot who helps around the house by delivering items to a user.
+Upon receiving the task, you will come up with a plan and execute it. 
+To come up with a plan, you first need to identify the key locations(nodes). It could be the user, item, room or node within a room.
+Then you need to generate a path to get there. However, in the event of a node blockage, you will need to generate a new path. 
+If the task is succesful, you will reply with TERMINATE
+""")
 
 # Register functions with the UserProxyAgent
 # Ensure each referenced function is defined and correctly implemented in the project
@@ -732,7 +765,6 @@ user.register_function(
         "get_user_node": get_user_node  # Add this to retrieve the user's current node
     }
 )
-
 setup_simulation()
 create_rooms_and_graph()
 # Pygame window, colors, and fonts initialization
@@ -751,14 +783,14 @@ me = User('k3', 'left')
 logger = Logger()  
 MAX_MESSAGES = 5  # Maximum number of messages to display
 conversation_log = []  # Holds the most recent conversation lines
-robot_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
+robot_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
 robot = Robot("lr1", graph, robot_image_path, logger)
  
 item_manager = ItemLocationManager()
 # Initialize items and their locations
 items = {
-    'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\3105807.png', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\creativeagency\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
 }
 
 # Update the locations for the items
