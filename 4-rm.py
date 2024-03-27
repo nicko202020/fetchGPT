@@ -691,13 +691,13 @@ llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Instructs the robot to move stepwise towards a designated target node, navigating through the nodes one at a time. It should be invoked with the next immediate node in the robot's path until the destination is reached.",
+            "description": "Directs the robot to move step by step toward a target node, adhering to the established path. If the node is blocked or inaccessible, the robot must adapt its route accordingly.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "he next node in the sequence towards which the robot will move."
+                        "description": "The identifier of the node towards which the robot should advance."
                     }
                 },
                 "required": ["target_node"]
@@ -705,13 +705,13 @@ llm_config = {
         },
         {
             "name": "get_room_nodes",
-            "description": "Retrieves a list of all nodes within the specified room. Use only if node not directly specified",
+            "description": "Retrieves all nodes within a given room to facilitate room-based navigation or task completion within that space.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "room_name": {
                         "type": "string",
-                        "description": "The designation of the room from which to obtain node information."
+                        "description": "The room's name for which node information is needed."
                     }
                 },
                 "required": ["room_name"]
@@ -719,40 +719,40 @@ llm_config = {
         },
         {
             "name": "get_current_position",
-            "description": "Obtains the current position of the robot, identified by the node it occupies.",
+            "description": "Acquires the robot's current location by providing the node it presently occupies, essential for determining the next steps in navigation or task execution.",
             "parameters": {}
         },
         {
             "name": "get_path",
-            "description": "Computes a navigational route from the robot's current position to a specified target node. It outlines a sequence of nodes that the robot should follow to reach its destination.",
+            "description": "Calculates the pathway from the robot's current node to a specified destination, critical for planning its movements within the environment.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The endpoint node for which the path is to be calculated."
-                    },
+                        "description": "The target node to which a path is sought."
+                    }
                 },
                 "required": ["target_node"]
             }
         },
         {
             "name": "recalculate_path",
-            "description": "Reroutes the path from the robot's current position to avoid any newly identified blocked node and reach the target node effectively.",
+            "description": "Generates a new path avoiding any blocked nodes previously encountered, demonstrating the robot's adaptability and problem-solving capability.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The final node destination for the recalculated path."
+                        "description": "The destination node for the new path."
                     },
                     "blocked_node": {
                         "type": "string",
-                        "description": "The node that has been identified as blocked and needs to be avoided in the new path calculation."
+                        "description": "A node to be circumvented in the new routing."
                     }
                 },
                 "required": ["target_node", "blocked_node"]
-                }
+            }
         },
         {
             "name": "get_user_node",
@@ -830,12 +830,12 @@ is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstri
 max_consecutive_auto_reply=30)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
-system_message="""Role: You are a robotic assistant tasked with delivering items within a household. 
-On receiving a directive, your objectives are:
-- Ascertain crucial nodes based on the directive, differentiating between 'node' and 'room' queries.
-- Navigate the environment methodically, ensuring each movement is to an adjacent, unblocked node.
-- Upon task completion, confirm with 'TERMINATE'.
-Understand that your actions should demonstrate adaptability and precision, embodying the essence of a helpful and efficient household robot
+system_message="""Role: As a robotic assistant, your role encompasses navigating a residential space to assist with item delivery tasks. You're tasked with understanding directives, pinpointing crucial locations, and ensuring successful item transfers. Critical aspects include:
+- Differentiating essential nodes or areas based on task requirements.
+- Executing stepwise navigation, avoiding any impromptu obstructions.
+- Adapting routes proactively upon encountering blockages.
+- Confirming task completion with a 'TERMINATE' message.
+Your conduct should reflect efficiency, adaptiveness, and a keen understanding of the household layout and dynamics.
 """)
 
 # Register functions with the UserProxyAgent
@@ -849,7 +849,8 @@ user.register_function(
         "pick_up_item_robot": pick_up_item_robot,
         "drop_off_item_robot": drop_off_item_robot,
         "get_item_location_robot": get_item_location_robot,
-        "get_user_node": get_user_node  # Add this to retrieve the user's current node
+        "get_user_node": get_user_node,  # Retrieve the user's current node.
+        "recalculate_path": recalculate_path  # Newly added function for recalculating the path.
     }
 )
 
