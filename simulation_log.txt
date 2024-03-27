@@ -1,14 +1,13 @@
 Simulation Log
-Failed to pick up item banana at lr1
-Moved to node lr2 at position 910, 290
-Moved to node lr5 at position 910, 390
-Moved to node k5 at position 1010, 390
-Moved to node k3 at position 1010, 490
-Moved to node k4 at position 1210, 490
+Moved to node lr2
+Moved to node lr5
+Moved to node k5
+Moved to node k3
+Moved to node k4
 Picked up item banana at k4
-Moved to node k3 at position 1010, 490
-Moved to node k5 at position 1010, 390
-Moved to node lr5 at position 910, 390
-Moved to node lr2 at position 910, 290
-Moved to node lr1 at position 710, 290
-Moved to node lr2 at position 910, 290
+Moved to node k3
+Moved to node k5
+Moved to node lr5
+Moved to node s5
+Moved to node s4
+Node s3 blocked

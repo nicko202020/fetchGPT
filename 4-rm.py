@@ -86,31 +86,35 @@ class Robot:
             # Optionally, scale the image
             self.image = pygame.transform.scale(self.image, (50, 50))  # Resize to 50x50 or any appropriate size
         self.held_item = None  # Initialize held_item as None
-    def move_to_node(self, target_node):
-        # Generates the initial path to the target node
-        path = self.graph.find_path(self.current_node, target_node)
+    def move_to_node(self, next_node):
+        # Check if the next_node is part of the path and if the robot can move step by step
+        path = self.graph.find_path(self.current_node, next_node)
         if path:
-            # Iterate through the path
-            for node in path[1:]:
-                if node not in self.blocked_nodes and random.choice([True, False, False]):
-                    # Record the blockage and log it
+            for node in path[1:]:  # Skip the current node, start with the next
+                if not self.blockage_encountered and random.choice([True, False, False]):
+                    # Block the node and mark the occurrence
                     self.blocked_nodes.append(node)
+                    self.blockage_encountered = True
                     if self.logger:
                         self.logger.log(f"Node {node} blocked")
-                    # Return the blockage information
                     return f"Node {node} blocked"
 
-                # Skip if the node is known to be blocked
+                # Skip the iteration if the node is blocked
                 if node in self.blocked_nodes:
+                    if self.logger:
+                        self.logger.log(f"Node {node} previously blocked")
                     continue
 
-                # Move the robot if no blockage is encountered
+                # Actual movement to the next node
                 self.current_node = node
                 self.x, self.y = self.graph.get_node_coordinates(node)
                 if self.logger:
                     self.logger.log(f"Moved to node {node}")
-            return f"Moved to {target_node}"
-        return "Path not found"
+
+            # If the loop completes without interruptions, the target node was reached
+            return f"Moved to {next_node}"
+        else:
+            return "Path not found or is invalid"
 
     def move_to_coordinates(self, x, y):
         """Updates the robot's position based on coordinates. Not typically used with graph navigation."""
@@ -196,20 +200,22 @@ class Graph:
     def find_path_avoiding_blocked_nodes(self, start, end, blocked_nodes):
         if start == end:
             return [start]
-
-        def visit(node, visited, path):
-            if node == end:
-                return path
-
-            visited.add(node)
-            for next_node in self.edges.get(node, {}):
-                if next_node not in visited and next_node not in blocked_nodes:
-                    result = visit(next_node, visited, path + [next_node])
-                    if result:
-                        return result
-            return None
-
-        return visit(start, set(), [start])
+        visited = {start}
+        queue = [[start]]
+        while queue:
+            path = queue.pop(0)
+            node = path[-1]
+            if node in blocked_nodes:
+                continue  # Skip this node as it's blocked, but continue searching other paths
+            for adjacent in self.edges.get(node, {}):
+                if adjacent not in visited and adjacent not in blocked_nodes:
+                    new_path = list(path)
+                    new_path.append(adjacent)
+                    queue.append(new_path)
+                    if adjacent == end:
+                        return new_path  # Return this path as soon as end node is reached
+                    visited.add(adjacent)
+        return None  # Return None if no path is found avoiding the blocked nodes
     def get_node_coordinates(self, node_id):
         for room, nodes in self.nodes.items():
             if node_id in nodes:
@@ -509,10 +515,10 @@ def log_error(error_message):
     if logger:
         logger.log_error(error_message)
 
-def move_robot(target_node):
-    """Move the robot to a specified node."""
-    global robot  # Ensure the 'robot' instance is globally accessible.
-    return robot.move_to_node(target_node)
+def move_robot(next_node):
+    """Global function to move the robot to the next node."""
+    global robot  # Ensure global access to the robot instance
+    return robot.move_to_node(next_node)
 def get_current_position():
     """Get the current position of the robot."""
     global robot  # Assuming 'robot' is an instance of the Robot class
@@ -524,16 +530,10 @@ def get_robot_current_room():
     return robot.current_room()
 
 def get_path(target_node):
-    """
-    Computes a path from the robot's current node to a specified target node.
-    
-    Args:
-        target_node (str): The identifier of the target node.
-        
-    Returns:
-        list: A sequence of node identifiers forming the path to the target.
-    """
-    global robot, graph  # Access to robot and graph instances.
+    """Global function to find a path to the target node."""
+    global robot, graph
+    start_node = robot.current_node
+    return graph.find_path(start_node, target_node)
 
     start_node = robot.current_node
     assert target_node in graph.get_all_nodes(), "Target must be a valid node identifier."
@@ -543,16 +543,7 @@ def get_path(target_node):
     
     return path
 def get_alternative_path(target_node, blocked_nodes):
-    """
-    A wrapper function that calls the Graph's method to find an alternative path avoiding the blocked nodes.
-
-    Args:
-        target_node (str): The identifier of the target node.
-        blocked_nodes (list): A list of node identifiers that should be avoided.
-    
-    Returns:
-        list: A sequence of node identifiers forming the path to the target while avoiding blocked nodes.
-    """
+    """Global function to find an alternative path avoiding certain nodes."""
     global robot, graph
     start_node = robot.current_node
     return graph.find_path_avoiding_blocked_nodes(start_node, target_node, blocked_nodes)
@@ -691,16 +682,16 @@ llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Directs the robot to move step by step toward a target node, adhering to the established path. If the node is blocked or inaccessible, the robot must adapt its route accordingly.",
+            "description": "Directs the robot to move to the next specified node within its current path. This function is crucial for step-by-step navigation following a path determined by 'get_path' or 'get_alternative_path'. It is imperative to call this function iteratively for each consecutive node along the path until the robot reaches its destination.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target_node": {
+                    "next_node": {
                         "type": "string",
-                        "description": "The identifier of the node towards which the robot should advance."
+                        "description": "The next node on the robot's path where it should move to. The robot progresses by moving from its current node to this next node."
                     }
                 },
-                "required": ["target_node"]
+                "required": ["next_node"]
             }
         },
         {
@@ -724,34 +715,37 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Calculates the pathway from the robot's current node to a specified destination, critical for planning its movements within the environment.",
+            "description": "Computes the most direct path from the robot's current location to the specified target node using available pathways, unaffected by any known blockages. This function establishes a sequence of nodes that the robot should traverse to reach its target.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The target node to which a path is sought."
+                        "description": "The endpoint for the path computation. This node is the final destination the robot aims to reach through the computed path."
                     }
                 },
                 "required": ["target_node"]
             }
         },
         {
-            "name": "recalculate_path",
-            "description": "Generates a new path avoiding any blocked nodes previously encountered, demonstrating the robot's adaptability and problem-solving capability.",
+            "name": "get_alternative_path",
+            "description": "Calculates an alternate route to a given target node while circumventing any nodes identified as blocked. This function enables the robot to adaptively respond to sudden changes or obstacles within its environment by finding viable detours.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": "The destination node for the new path."
+                        "description": "The target node to which the alternative path should be found, avoiding any interruptions."
                     },
-                    "blocked_node": {
-                        "type": "string",
-                        "description": "A node to be circumvented in the new routing."
+                    "blocked_nodes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "An array of node identifiers that the new path should avoid, representing the blocked portions of the environment."
                     }
                 },
-                "required": ["target_node", "blocked_node"]
+                "required": ["target_node", "blocked_nodes"]
             }
         },
         {
@@ -830,12 +824,16 @@ is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstri
 max_consecutive_auto_reply=30)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
-system_message="""Role: As a robotic assistant, your role encompasses navigating a residential space to assist with item delivery tasks. You're tasked with understanding directives, pinpointing crucial locations, and ensuring successful item transfers. Critical aspects include:
-- Differentiating essential nodes or areas based on task requirements.
-- Executing stepwise navigation, avoiding any impromptu obstructions.
-- Adapting routes proactively upon encountering blockages.
-- Confirming task completion with a 'TERMINATE' message.
-Your conduct should reflect efficiency, adaptiveness, and a keen understanding of the household layout and dynamics.
+system_message="""Role: You are a robotic assistant tasked with delivering items within a household. 
+Upon receiving a directive, your objectives are:
+- Identify crucial nodes based on the directive, distinguishing between 'node' and 'room' queries.
+- Methodically navigate the environment, ensuring each movement is to an adjacent, unblocked node. Utilize the 'get_path' function to determine your route.
+- Should you encounter a blocked node during your traversal, immediately switch to using 'get_alternative_path' to recalibrate your route and avoid the obstacle.
+- Continue to adaptively respond to any additional blockages by recalculating your path as necessary, ensuring you always strive for the most efficient alternate route.
+- Upon successful completion of your task, confirm with 'TERMINATE'.
+
+Your actions should demonstrate adaptability and precision, reflecting your role as a helpful and efficient household robot. 
+Always be prepared to dynamically adjust your route in response to unexpected changes within your operational environment.
 """)
 
 # Register functions with the UserProxyAgent
@@ -846,11 +844,11 @@ user.register_function(
         "get_current_position": get_current_position,
         "get_room_nodes": get_room_nodes,
         "get_path": get_path,
+        "get_alternative_path": get_alternative_path,  
         "pick_up_item_robot": pick_up_item_robot,
         "drop_off_item_robot": drop_off_item_robot,
         "get_item_location_robot": get_item_location_robot,
-        "get_user_node": get_user_node,  # Retrieve the user's current node.
-        "recalculate_path": recalculate_path  # Newly added function for recalculating the path.
+        "get_user_node": get_user_node
     }
 )
 
