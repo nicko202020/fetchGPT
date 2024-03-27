@@ -87,27 +87,28 @@ class Robot:
             self.image = pygame.transform.scale(self.image, (50, 50))  # Resize to 50x50 or any appropriate size
         self.held_item = None  # Initialize held_item as None
     def move_to_node(self, target_node):
+        # Generates the initial path to the target node
         path = self.graph.find_path(self.current_node, target_node)
         if path:
+            # Iterate through the path
             for node in path[1:]:
-                # Check for blockage only if the node is not already in the blocked list
-                if node not in self.blocked_nodes and random.choice([True, False, False]):  # Random blockage
-                    self.blocked_nodes.append(node)  # Record newly encountered blockage
+                if node not in self.blocked_nodes and random.choice([True, False, False]):
+                    # Record the blockage and log it
+                    self.blocked_nodes.append(node)
                     if self.logger:
                         self.logger.log(f"Node {node} blocked")
+                    # Return the blockage information
                     return f"Node {node} blocked"
 
-                # Skip moving to the next node if it's marked as blocked
+                # Skip if the node is known to be blocked
                 if node in self.blocked_nodes:
-                    if self.logger:
-                        self.logger.log(f"Node {node} blocked")
                     continue
 
-                # Move the robot to the next node if no blockage
+                # Move the robot if no blockage is encountered
                 self.current_node = node
                 self.x, self.y = self.graph.get_node_coordinates(node)
                 if self.logger:
-                    self.logger.log(f"Moved to node {node} at position {self.x}, {self.y}")
+                    self.logger.log(f"Moved to node {node}")
             return f"Moved to {target_node}"
         return "Path not found"
 
@@ -175,39 +176,40 @@ class Graph:
         self.edges[node1][node2] = weight
         self.edges[node2][node1] = weight
 
-    def find_path(self, start, end, blocked_nodes=[]):
-        """
-        Finds a path from start to end, avoiding any nodes listed in blocked_nodes.
-        
-        Args:
-        start (str): Starting node ID.
-        end (str): Target node ID.
-        blocked_nodes (list): List of node IDs that are to be avoided.
-
-        Returns:
-        list: The sequence of node IDs forming the path from start to end, or an empty list if no path is found.
-        """
+    def find_path(self, start, end):
         if start == end:
             return [start]
-        visited = set()
+        visited = {start}
         queue = [[start]]
-
         while queue:
             path = queue.pop(0)
             node = path[-1]
-
-            if node == end:
-                return path
-
             for adjacent in self.edges.get(node, {}):
-                if adjacent not in visited and adjacent not in blocked_nodes:
-                    visited.add(adjacent)
+                if adjacent not in visited:
                     new_path = list(path)
                     new_path.append(adjacent)
                     queue.append(new_path)
-
+                    if adjacent == end:
+                        return new_path
+                    visited.add(adjacent)
         return []
+    def find_path_avoiding_blocked_nodes(self, start, end, blocked_nodes):
+        if start == end:
+            return [start]
 
+        def visit(node, visited, path):
+            if node == end:
+                return path
+
+            visited.add(node)
+            for next_node in self.edges.get(node, {}):
+                if next_node not in visited and next_node not in blocked_nodes:
+                    result = visit(next_node, visited, path + [next_node])
+                    if result:
+                        return result
+            return None
+
+        return visit(start, set(), [start])
     def get_node_coordinates(self, node_id):
         for room, nodes in self.nodes.items():
             if node_id in nodes:
@@ -540,6 +542,20 @@ def get_path(target_node):
     return path if path else "Path not found."
     
     return path
+def get_alternative_path(target_node, blocked_nodes):
+    """
+    A wrapper function that calls the Graph's method to find an alternative path avoiding the blocked nodes.
+
+    Args:
+        target_node (str): The identifier of the target node.
+        blocked_nodes (list): A list of node identifiers that should be avoided.
+    
+    Returns:
+        list: A sequence of node identifiers forming the path to the target while avoiding blocked nodes.
+    """
+    global robot, graph
+    start_node = robot.current_node
+    return graph.find_path_avoiding_blocked_nodes(start_node, target_node, blocked_nodes)
 def get_node_info(room_name):
     """
     Retrieves information about the specified room, including its nodes and the connecting edges between those nodes.
