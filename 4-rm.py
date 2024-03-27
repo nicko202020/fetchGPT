@@ -175,22 +175,37 @@ class Graph:
         self.edges[node1][node2] = weight
         self.edges[node2][node1] = weight
 
-    def find_path(self, start, end):
+    def find_path(self, start, end, blocked_nodes=[]):
+        """
+        Finds a path from start to end, avoiding any nodes listed in blocked_nodes.
+        
+        Args:
+        start (str): Starting node ID.
+        end (str): Target node ID.
+        blocked_nodes (list): List of node IDs that are to be avoided.
+
+        Returns:
+        list: The sequence of node IDs forming the path from start to end, or an empty list if no path is found.
+        """
         if start == end:
             return [start]
-        visited = {start}
+        visited = set()
         queue = [[start]]
+
         while queue:
             path = queue.pop(0)
             node = path[-1]
+
+            if node == end:
+                return path
+
             for adjacent in self.edges.get(node, {}):
-                if adjacent not in visited:
+                if adjacent not in visited and adjacent not in blocked_nodes:
+                    visited.add(adjacent)
                     new_path = list(path)
                     new_path.append(adjacent)
                     queue.append(new_path)
-                    if adjacent == end:
-                        return new_path
-                    visited.add(adjacent)
+
         return []
 
     def get_node_coordinates(self, node_id):
@@ -506,32 +521,25 @@ def get_robot_current_room():
     global robot  # Assuming 'robot' is an instance of the Robot class
     return robot.current_room()
 
-def get_path(destination):
-    """Calculates a path to a specified target, which can be a room, a node, or an item."""
-    global robot, graph, item_manager  # Assuming these are globally accessible
+def get_path(target_node):
+    """
+    Computes a path from the robot's current node to a specified target node.
+    
+    Args:
+        target_node (str): The identifier of the target node.
+        
+    Returns:
+        list: A sequence of node identifiers forming the path to the target.
+    """
+    global robot, graph  # Access to robot and graph instances.
 
     start_node = robot.current_node
-    end_node = None
+    assert target_node in graph.get_all_nodes(), "Target must be a valid node identifier."
 
-    # Check if the destination is a room
-    if destination in graph.nodes:  
-        # Choose an arbitrary node within the room as the destination
-        end_node = next(iter(graph.nodes[destination].values()))[0]
-
-    # Check if the destination is a node
-    elif any(destination in nodes for nodes in graph.nodes.values()):
-        end_node = destination
-
-    # Check if the destination is an item
-    elif destination in item_manager.get_all_items():
-        end_node = item_manager.get_item_location(destination)
-
-    # Calculate the path if a valid end node is identified
-    if end_node:
-        path = graph.find_path(start_node, end_node)
-        return path if path else "Path not found"
+    path = graph.find_path(start_node, target_node)
+    return path if path else "Path not found."
     
-    return "Unknown destination"
+    return path
 def get_node_info(room_name):
     """
     Retrieves information about the specified room, including its nodes and the connecting edges between those nodes.
@@ -569,11 +577,14 @@ def draw_edges(graph, screen):
         for end_node, _ in connections.items():
             end_pos = graph.get_node_coordinates(end_node)
             pygame.draw.line(screen, (0, 255, 0), start_pos, end_pos, 1)
-def draw_nodes(graph):
+def draw_nodes(graph, robot):
+    RED = (255, 0, 0)
+    GRAY = (192, 192, 192)
     for room, nodes in graph.nodes.items():
         for node_id, coordinates in nodes.items():
-            pygame.draw.circle(screen, (192, 192, 192), coordinates, 5)
-
+            # Check if the node is blocked and set the color accordingly
+            node_color = RED if node_id in robot.blocked_nodes else GRAY
+            pygame.draw.circle(screen, node_color, coordinates, 5)
 def draw_robot_path(robot, graph, color=(250, 255, 0)):
     if robot.path:
         for i in range(len(robot.path) - 1):
@@ -664,13 +675,13 @@ llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": "Relocates the robot to the target node step by step, checking for obstructions. A blocked node prevents progression.",
+            "description": "Instructs the robot to move stepwise towards a designated target node, navigating through the nodes one at a time. It should be invoked with the next immediate node in the robot's path until the destination is reached.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_node": {
                         "type": "string",
-                        "description": " A unique identifier for the node the robot should navigate to."
+                        "description": "he next node in the sequence towards which the robot will move."
                     }
                 },
                 "required": ["target_node"]
@@ -678,7 +689,7 @@ llm_config = {
         },
         {
             "name": "get_room_nodes",
-            "description": "Retrieves a list of all nodes within the specified room, aiding in room-based navigation and planning",
+            "description": "Retrieves a list of all nodes within the specified room. Use only if node not directly specified",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -697,17 +708,35 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Computes a navigational route from the robot's current node to a specified target, considering the layout.",
+            "description": "Computes a navigational route from the robot's current position to a specified target node. It outlines a sequence of nodes that the robot should follow to reach its destination.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "destination": {
+                    "target_node": {
                         "type": "string",
-                        "description": "The endpoint node for the calculated path."
+                        "description": "The endpoint node for which the path is to be calculated."
+                    },
+                },
+                "required": ["target_node"]
+            }
+        },
+        {
+            "name": "recalculate_path",
+            "description": "Reroutes the path from the robot's current position to avoid any newly identified blocked node and reach the target node effectively.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target_node": {
+                        "type": "string",
+                        "description": "The final node destination for the recalculated path."
+                    },
+                    "blocked_node": {
+                        "type": "string",
+                        "description": "The node that has been identified as blocked and needs to be avoided in the new path calculation."
                     }
                 },
-                "required": ["destination"]
-            }
+                "required": ["target_node", "blocked_node"]
+                }
         },
         {
             "name": "get_user_node",
@@ -873,7 +902,7 @@ while running:
 
     # Fill the screen with white
     screen.fill(BLACK)
-    draw_nodes(graph)  
+    draw_nodes(graph, robot)  
     draw_edges(graph, screen)  
     draw_room(living_room)  
     draw_room(kitchen)
