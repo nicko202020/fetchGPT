@@ -4,14 +4,25 @@ import threading
 import random
 import datetime
 class User:
-    def __init__(self, node_id, preferred_side='left', color=(0, 255, 0), size=20):
+    def __init__(self, node_id, preferred_side='left', image_path=None, target_size=(50, 50)):
         self.node_id = node_id
         self.preferred_side = preferred_side  # 'left' or 'right'
-        self.color = color
-        self.size = size
-    
+        self.image_path = image_path
+        self.target_size = target_size
+        self.image = pygame.image.load(image_path).convert_alpha() if image_path else None
+        if self.image:
+            self.image = pygame.transform.scale(self.image, target_size)
+
     def draw(self, screen, position):
-        pygame.draw.rect(screen, self.color, (position[0], position[1], self.size, self.size))
+        if self.image:
+            # Determine the offset based on the preferred side
+            if self.preferred_side == 'left':
+                offset_x = -self.target_size[0]
+            else:
+                offset_x = self.target_size[0]
+                
+            image_position = (position[0] + offset_x, position[1] - self.target_size[1] // 2)
+            screen.blit(self.image, image_position)
 class Item:
     def __init__(self, item_id, image_path=None, target_size=(50, 50)):
         self.item_id = item_id
@@ -72,6 +83,15 @@ class Logger:
     def log_info(self, info_message):
         """Logs an informational message."""
         self.log(f"INFO: {info_message}")
+class BlockedNode:
+    def __init__(self):
+        self.node_id = None  # Initially, no node is blocked
+
+    def set_blocked_node(self, node_id):
+        self.node_id = node_id
+
+    def is_node_blocked(self, node_id):
+        return self.node_id == node_id
 class Robot:
     def __init__(self, start_node, graph, image_path=None, logger=None):
         self.current_node = start_node
@@ -79,42 +99,39 @@ class Robot:
         self.logger = logger
         self.x, self.y = self.graph.get_node_coordinates(start_node)
         self.path = []
-        self.blockage_encountered = False
         self.blocked_nodes = []
+        self.blockage_encountered = False
         self.image = pygame.image.load(image_path).convert_alpha() if image_path else None
         if self.image:
             # Optionally, scale the image
             self.image = pygame.transform.scale(self.image, (50, 50))  # Resize to 50x50 or any appropriate size
         self.held_item = None  # Initialize held_item as None
-    def move_to_node(self, next_node):
-        # Check if the next_node is part of the path and if the robot can move step by step
-        path = self.graph.find_path(self.current_node, next_node)
+    def move_to_node(self, target_node):
+        path = self.graph.find_path(self.current_node, target_node)
         if path:
-            for node in path[1:]:  # Skip the current node, start with the next
-                if not self.blockage_encountered and random.choice([True, False, False]):
-                    # Block the node and mark the occurrence
-                    self.blocked_nodes.append(node)
-                    self.blockage_encountered = True
-                    if self.logger:
-                        self.logger.log(f"Node {node} blocked")
-                    return f"Node {node} blocked"
-
-                # Skip the iteration if the node is blocked
+            for node in path[1:]:
+                # If moving to the graph's blocked node, record and report the blockage
+                if node == self.graph.blocked_node:
+                    # Here, we assume blocked_nodes is a list attribute of the Robot
+                    if node not in self.blocked_nodes:
+                        self.blocked_nodes.append(node)
+                        if self.logger:
+                            self.logger.log(f"Node {node} blocked")
+                        return f"Node {node} blocked"
+                
+                # Continue if the node is in the blocked_nodes list
                 if node in self.blocked_nodes:
                     if self.logger:
                         self.logger.log(f"Node {node} previously blocked")
                     continue
 
-                # Actual movement to the next node
+                # Update the robot's current position if not blocked
                 self.current_node = node
                 self.x, self.y = self.graph.get_node_coordinates(node)
                 if self.logger:
                     self.logger.log(f"Moved to node {node}")
-
-            # If the loop completes without interruptions, the target node was reached
-            return f"Moved to {next_node}"
-        else:
-            return "Path not found or is invalid"
+            return f"Moved to {target_node}"
+        return "Path not found"
 
     def move_to_coordinates(self, x, y):
         """Updates the robot's position based on coordinates. Not typically used with graph navigation."""
@@ -166,6 +183,7 @@ class Graph:
     def __init__(self):
         self.nodes = {}
         self.edges = {}
+        self.blocked_node = 'lr5'
 
     def add_node(self, room_name, node_id, coordinates):
         if room_name not in self.nodes:
@@ -291,7 +309,7 @@ def create_rooms_and_graph():
     dining_room.add_node("d4", (1210, 790))  # Adjusted from (650, 650)
     dining_room.add_node("d5", (1010, 690))  # Node near the boundary towards the Kitchen
 
-    # Update nodes within Study Room (Left-Bottom)
+    # # Update nodes within Study Room (Left-Bottom)
     study_room.add_node("s1", (710, 590))  # Adjusted from (150, 450)
     study_room.add_node("s2", (910, 590))  # Adjusted from (350, 450)
     study_room.add_node("s3", (710, 790))  # Adjusted from (150, 650)
@@ -299,40 +317,37 @@ def create_rooms_and_graph():
     study_room.add_node("s5", (910, 690))  # Node near the boundary towards the Living Room
 
     living_room.add_edge("lr1", "lr2")
-    living_room.add_edge("lr2", "lr4")
-    living_room.add_edge("lr3", "lr4")
     living_room.add_edge("lr1", "lr3")
     living_room.add_edge("lr2", "lr5")
-    living_room.add_edge("lr4", "lr5")
+    living_room.add_edge("lr5", "lr4")
+    living_room.add_edge("lr3", "lr4")
+    graph.add_edge("lr5", "k5")
+    graph.add_edge("lr4", "s2")
 
-
-    kitchen.add_edge("k1", "k2")
-    kitchen.add_edge("k2", "k4")
-    kitchen.add_edge("k3", "k4")
-    kitchen.add_edge("k1", "k3")
     kitchen.add_edge("k1", "k5")
-    kitchen.add_edge("k3", "k5")
+    kitchen.add_edge("k5", "k3")
+    kitchen.add_edge("k3", "k4")
+    kitchen.add_edge("k4", "k2")
+    kitchen.add_edge("k2", "k1")
+    graph.add_edge("k3", "d1")
+
 
     dining_room.add_edge("d1", "d2")
     dining_room.add_edge("d2", "d4")
-    dining_room.add_edge("d3", "d4")
-    dining_room.add_edge("d1", "d3")
-    dining_room.add_edge("d1", "d5")
+    dining_room.add_edge("d4", "d3")
     dining_room.add_edge("d3", "d5")
+    dining_room.add_edge("d5", "d1")
+    graph.add_edge("d5", "s5")
+ 
 
 
     study_room.add_edge("s1", "s2")
-    study_room.add_edge("s2", "s4")
-    study_room.add_edge("s3", "s4")
-    study_room.add_edge("s1", "s3")
     study_room.add_edge("s2", "s5")
-    study_room.add_edge("s4", "s5")
+    study_room.add_edge("s5", "s4")
+    study_room.add_edge("s4", "s3")
+    study_room.add_edge("s3", "s1")
 
-    # Connect adjacent rooms via their nearest edge nodes
-    graph.add_edge("lr5", "k5")
-    graph.add_edge("k5", "d5")
-    graph.add_edge("lr5", "s5")
-    graph.add_edge("d5", "s5")
+
 def initialize_robot(start_node="lr1"):
     """Initializes the robot at a given start node."""
     global robot, logger
@@ -395,22 +410,28 @@ def draw_robot(robot, screen):
         # Fallback to a simple circle if no image is provided
         pygame.draw.circle(screen, (255, 0, 0), (int(robot.x), int(robot.y)), 10)
 def draw_user_on_map(screen, user, graph):
-    # Retrieve the position of the node associated with the user
     node_position = graph.get_node_coordinates(user.node_id)
     
-    # Determine the horizontal offset based on the preferred side
-    offset_x = 10  # Adjust this value as needed for your visual layout
+    if user.image:
+        # Adjust the x coordinate based on the preferred side
+        if user.preferred_side == 'left':
+            offset_x = -user.image.get_width()  # Offset to the left
+        else:
+            offset_x = 0  # No offset to the right; already at the node's edge
 
-    if user.preferred_side == 'left':
-        user_position_x = node_position[0] - offset_x - user.size
-    else:  # If the preferred side is 'right'
+        # Calculate the position to place the image beside the node
         user_position_x = node_position[0] + offset_x
+        user_position_y = node_position[1] - user.image.get_height() // 2  # Vertically centered
 
-    # The vertical position remains aligned with the node
-    user_position_y = node_position[1] - user.size / 2  # Adjust vertically to align center
+        # Adjust position to not overlap the node
+        image_position = (user_position_x, user_position_y)
 
-    # Draw the user at the calculated position
-    user.draw(screen, (user_position_x, user_position_y))
+        # Draw the user image at the calculated position
+        screen.blit(user.image, image_position)
+    else:
+        # Fallback: Draw a simple circle if no image is provided
+        offset_x = -20 if user.preferred_side == 'left' else 20  # Offset for the circle representation
+        pygame.draw.circle(screen, (0, 0, 255), (node_position[0] + offset_x, node_position[1]), 10)
 def draw_path(path):
     """Draws the path the robot plans to take."""
     if len(path) > 1:
@@ -589,7 +610,6 @@ def draw_nodes(graph, robot):
     GRAY = (192, 192, 192)
     for room, nodes in graph.nodes.items():
         for node_id, coordinates in nodes.items():
-            # Check if the node is blocked and set the color accordingly
             node_color = RED if node_id in robot.blocked_nodes else GRAY
             pygame.draw.circle(screen, node_color, coordinates, 5)
 def draw_robot_path(robot, graph, color=(250, 255, 0)):
@@ -865,7 +885,8 @@ WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
 
 
 initialize_robot("lr1")
-me = User('k3', 'left')
+user_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\pngtree-man-in-shirt-smiles-and-gives-thumbs-up-to-show-approval-png-image_10094381.png'
+me = User(node_id='k3', preferred_side='left', image_path=user_image_path)
 # Initialize the robot at a given start node
 logger = Logger()  
 MAX_MESSAGES = 5  # Maximum number of messages to display
