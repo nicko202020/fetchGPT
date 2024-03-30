@@ -277,114 +277,114 @@ def initialize_pygame():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     font = pygame.font.Font(None, 36)  # Basic font for text rendering
 
-def create_rooms_and_graph():
-    global graph, living_room, kitchen, dining_room, study_room, bedroom, bathroom
+    def create_rooms_and_graph():
+        global graph, living_room, kitchen, dining_room, study_room, bedroom, bathroom
+        
+        
+        # Initialize the graph
+        graph = Graph()
+
+        # Define centered room boundaries
+        living_room = Room("living room", 660, 240, 960, 540, graph)  # Left-top room
+        kitchen = Room("kitchen", 960, 240, 1260, 540, graph)         # Right-top room
+        dining_room = Room("dining room", 960, 540, 1260, 840, graph) # Right-bottom room
+        study_room = Room("study room", 660, 540, 960, 840, graph)    # Left-bottom room
+        bedroom = Room("bedroom", 1260, 240, 1560, 540, graph)      # New room
+        bathroom = Room("bathroom", 1260, 540, 1560, 840, graph)    # New room
+        # Update nodes within Living Room (Left-Top)
+        living_room.add_node("lr1", (710, 290))  # Adjusted from (150, 150)
+        living_room.add_node("lr2", (910, 290))  # Adjusted from (350, 150)
+        living_room.add_node("lr3", (710, 490))  # Adjusted from (150, 350)
+        living_room.add_node("lr4", (910, 490))  # Adjusted from (350, 350)
+        living_room.add_node("lr5", (910, 390))  # Node near the boundary towards the Kitchen
+
+        # Update nodes within Kitchen (Right-Top)
+        kitchen.add_node("k1", (1010, 290))  # Adjusted from (450, 150)
+        kitchen.add_node("k2", (1210, 290))  # Adjusted from (650, 150)
+        kitchen.add_node("k3", (1010, 490))  # Adjusted from (450, 350)
+        kitchen.add_node("k4", (1210, 490))  # Adjusted from (650, 350)
+        kitchen.add_node("k5", (1010, 390))  # Node near the boundary towards the Living Room
+        kitchen.add_node("k6", (1210, 390))  # Node near the boundary towards the Living Room
+
+        # Update nodes within Dining Room (Right-Bottom)
+        dining_room.add_node("d1", (1010, 590))  # Adjusted from (450, 450)
+        dining_room.add_node("d2", (1210, 590))  # Adjusted from (650, 450)
+        dining_room.add_node("d3", (1010, 790))  # Adjusted from (450, 650)
+        dining_room.add_node("d4", (1210, 790))  # Adjusted from (650, 650)
+        dining_room.add_node("d5", (1010, 690))  # Node near the boundary towards the Kitchen
+        dining_room.add_node("d6", (1210, 690))  # Node near the boundary towards the Kitchen
+
+        # # Update nodes within Study Room (Left-Bottom)
+        study_room.add_node("s1", (710, 590))  # Adjusted from (150, 450)
+        study_room.add_node("s2", (910, 590))  # Adjusted from (350, 450)
+        study_room.add_node("s3", (710, 790))  # Adjusted from (150, 650)
+        study_room.add_node("s4", (910, 790))  # Adjusted from (350, 650)
+        study_room.add_node("s5", (910, 690))  # Node near the boundary towards the Living Room
+
+        living_room.add_edge("lr1", "lr2")
+        living_room.add_edge("lr1", "lr3")
+        living_room.add_edge("lr2", "lr5")
+        living_room.add_edge("lr5", "lr4")
+        living_room.add_edge("lr3", "lr4")
+        graph.add_edge("lr5", "k5")
+        graph.add_edge("lr4", "s2")
+
+        kitchen.add_edge("k1", "k5")
+        kitchen.add_edge("k5", "k3")
+        kitchen.add_edge("k3", "k4")
+        kitchen.add_edge("k4", "k2")
+        kitchen.add_edge("k2", "k1")
+        graph.add_edge("k3", "d1")
+
+
+        dining_room.add_edge("d1", "d2")
+        dining_room.add_edge("d2", "d4")
+        dining_room.add_edge("d4", "d3")
+        dining_room.add_edge("d3", "d5")
+        dining_room.add_edge("d5", "d1")
+        graph.add_edge("d5", "s5")
     
-    
-    # Initialize the graph
-    graph = Graph()
-
-    # Define centered room boundaries
-    living_room = Room("living room", 660, 240, 960, 540, graph)  # Left-top room
-    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)         # Right-top room
-    dining_room = Room("dining room", 960, 540, 1260, 840, graph) # Right-bottom room
-    study_room = Room("study room", 660, 540, 960, 840, graph)    # Left-bottom room
-    bedroom = Room("bedroom", 1260, 240, 1560, 540, graph)      # New room
-    bathroom = Room("bathroom", 1260, 540, 1560, 840, graph)    # New room
-    # Update nodes within Living Room (Left-Top)
-    living_room.add_node("lr1", (710, 290))  # Adjusted from (150, 150)
-    living_room.add_node("lr2", (910, 290))  # Adjusted from (350, 150)
-    living_room.add_node("lr3", (710, 490))  # Adjusted from (150, 350)
-    living_room.add_node("lr4", (910, 490))  # Adjusted from (350, 350)
-    living_room.add_node("lr5", (910, 390))  # Node near the boundary towards the Kitchen
-
-    # Update nodes within Kitchen (Right-Top)
-    kitchen.add_node("k1", (1010, 290))  # Adjusted from (450, 150)
-    kitchen.add_node("k2", (1210, 290))  # Adjusted from (650, 150)
-    kitchen.add_node("k3", (1010, 490))  # Adjusted from (450, 350)
-    kitchen.add_node("k4", (1210, 490))  # Adjusted from (650, 350)
-    kitchen.add_node("k5", (1010, 390))  # Node near the boundary towards the Living Room
-    kitchen.add_node("k6", (1210, 390))  # Node near the boundary towards the Living Room
-
-    # Update nodes within Dining Room (Right-Bottom)
-    dining_room.add_node("d1", (1010, 590))  # Adjusted from (450, 450)
-    dining_room.add_node("d2", (1210, 590))  # Adjusted from (650, 450)
-    dining_room.add_node("d3", (1010, 790))  # Adjusted from (450, 650)
-    dining_room.add_node("d4", (1210, 790))  # Adjusted from (650, 650)
-    dining_room.add_node("d5", (1010, 690))  # Node near the boundary towards the Kitchen
-    dining_room.add_node("d6", (1210, 690))  # Node near the boundary towards the Kitchen
-
-    # # Update nodes within Study Room (Left-Bottom)
-    study_room.add_node("s1", (710, 590))  # Adjusted from (150, 450)
-    study_room.add_node("s2", (910, 590))  # Adjusted from (350, 450)
-    study_room.add_node("s3", (710, 790))  # Adjusted from (150, 650)
-    study_room.add_node("s4", (910, 790))  # Adjusted from (350, 650)
-    study_room.add_node("s5", (910, 690))  # Node near the boundary towards the Living Room
-
-    living_room.add_edge("lr1", "lr2")
-    living_room.add_edge("lr1", "lr3")
-    living_room.add_edge("lr2", "lr5")
-    living_room.add_edge("lr5", "lr4")
-    living_room.add_edge("lr3", "lr4")
-    graph.add_edge("lr5", "k5")
-    graph.add_edge("lr4", "s2")
-
-    kitchen.add_edge("k1", "k5")
-    kitchen.add_edge("k5", "k3")
-    kitchen.add_edge("k3", "k4")
-    kitchen.add_edge("k4", "k2")
-    kitchen.add_edge("k2", "k1")
-    graph.add_edge("k3", "d1")
 
 
-    dining_room.add_edge("d1", "d2")
-    dining_room.add_edge("d2", "d4")
-    dining_room.add_edge("d4", "d3")
-    dining_room.add_edge("d3", "d5")
-    dining_room.add_edge("d5", "d1")
-    graph.add_edge("d5", "s5")
- 
+        study_room.add_edge("s1", "s2")
+        study_room.add_edge("s2", "s5")
+        study_room.add_edge("s5", "s4")
+        study_room.add_edge("s4", "s3")
+        study_room.add_edge("s3", "s1")
+
+        # Update nodes within Bedroom (Right-Top)
+        bedroom.add_node("b1", (1310, 290))
+        bedroom.add_node("b2", (1510, 290))
+        bedroom.add_node("b3", (1310, 490))
+        bedroom.add_node("b4", (1510, 490))
+        bedroom.add_node("b5", (1310, 390))  # Node near the boundary towards the Kitchen
+
+        # Update nodes within Bathroom (Right-Bottom)
+        bathroom.add_node("ba1", (1310, 590))
+        bathroom.add_node("ba2", (1510, 590))
+        bathroom.add_node("ba3", (1310, 790))
+        bathroom.add_node("ba4", (1510, 790))
+        bathroom.add_node("ba5", (1310, 690))  # Node near the boundary towards the Dining Room
+
+        # Define edges within each room and between adjacent rooms
+        # Use add_edge method to connect nodes within and across rooms
+
+        # For new rooms:
+        bedroom.add_edge("b1", "b2")
+        bedroom.add_edge("b1", "b3")
+        bedroom.add_edge("b2", "b4")
+        bedroom.add_edge("b3", "b4")
 
 
-    study_room.add_edge("s1", "s2")
-    study_room.add_edge("s2", "s5")
-    study_room.add_edge("s5", "s4")
-    study_room.add_edge("s4", "s3")
-    study_room.add_edge("s3", "s1")
-
-    # Update nodes within Bedroom (Right-Top)
-    bedroom.add_node("b1", (1310, 290))
-    bedroom.add_node("b2", (1510, 290))
-    bedroom.add_node("b3", (1310, 490))
-    bedroom.add_node("b4", (1510, 490))
-    bedroom.add_node("b5", (1310, 390))  # Node near the boundary towards the Kitchen
-
-    # Update nodes within Bathroom (Right-Bottom)
-    bathroom.add_node("ba1", (1310, 590))
-    bathroom.add_node("ba2", (1510, 590))
-    bathroom.add_node("ba3", (1310, 790))
-    bathroom.add_node("ba4", (1510, 790))
-    bathroom.add_node("ba5", (1310, 690))  # Node near the boundary towards the Dining Room
-
-    # Define edges within each room and between adjacent rooms
-    # Use add_edge method to connect nodes within and across rooms
-
-    # For new rooms:
-    bedroom.add_edge("b1", "b2")
-    bedroom.add_edge("b1", "b3")
-    bedroom.add_edge("b2", "b4")
-    bedroom.add_edge("b3", "b4")
+        bathroom.add_edge("ba1", "ba2")
+        bathroom.add_edge("ba1", "ba3")
+        bathroom.add_edge("ba2", "ba4")
+        bathroom.add_edge("ba3", "ba4")
 
 
-    bathroom.add_edge("ba1", "ba2")
-    bathroom.add_edge("ba1", "ba3")
-    bathroom.add_edge("ba2", "ba4")
-    bathroom.add_edge("ba3", "ba4")
-
-
-    # Inter-room connections (example based on room adjacency)
-    graph.add_edge("k6", "b5")  # Connecting Kitchen to Bedroom
-    graph.add_edge("d6", "ba5")  # Connecting Dining Room to Bathroom
+        # Inter-room connections (example based on room adjacency)
+        graph.add_edge("k6", "b5")  # Connecting Kitchen to Bedroom
+        graph.add_edge("d6", "ba5")  # Connecting Dining Room to Bathroom
 
     
 
@@ -922,9 +922,9 @@ WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
 
 
 
-initialize_robot("lr1")
+
 user_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\pngtree-man-in-shirt-smiles-and-gives-thumbs-up-to-show-approval-png-image_10094381.png'
-me = User(node_id='k3', preferred_side='left', image_path=user_image_path)
+me = User(node_id='gy1', preferred_side='left', image_path=user_image_path)
 # Initialize the robot at a given start node
 logger = Logger()  
 MAX_MESSAGES = 5  # Maximum number of messages to display
@@ -1004,5 +1004,5 @@ while running:
     pygame.draw.rect(screen, color, input_box, 2)
 
     pygame.display.flip()   
-
+    time.sleep(0.1)
 pygame.quit()
