@@ -1,10 +1,18 @@
 Simulation Log
-Moved to node lr2
-Node lr5 blocked
-Moved to node lr1
+Picked up item water at lr1
+Moved to node lr6
+Moved to node gr5
+Moved to node gr4
+Moved to node gy2
+Moved to node gy1
+Dropped off item water at gy1
+Moved to node gy2
+Moved to node gr4
+Moved to node gr5
 Moved to node lr6
 Moved to node lr3
 Moved to node lr4
+Node lr5 blocked
 Moved to node s2
 Moved to node s5
 Moved to node d5
@@ -12,21 +20,12 @@ Moved to node d1
 Moved to node d2
 Moved to node k4
 Picked up item banana at k4
-Moved to node d2
-Moved to node d1
-Moved to node d5
-Moved to node s5
-Moved to node s2
-Moved to node lr4
-Moved to node lr3
-Moved to node lr6
+Moved to node k3
+Moved to node k5
+Node lr5 previously blocked
+Node lr5 previously blocked
+Moved to node lr2
 Moved to node lr1
 Moved to node lr6
 Moved to node gr5
 Moved to node gr2
-Moved to node gr1
-Moved to node gr6
-Moved to node li5
-Moved to node li4
-Moved to node li3
-Dropped off item banana at li3

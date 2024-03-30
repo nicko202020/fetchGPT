@@ -625,19 +625,14 @@ def get_robot_current_room():
     global robot  # Assuming 'robot' is an instance of the Robot class
     return robot.current_room()
 
-def get_path(target_node):
-    """Global function to find a path to the target node."""
+def get_path(start_node, target_node):
+    """Global function to find a path from the start node to the target node."""
     global robot, graph
-    start_node = robot.current_node
-    return graph.find_path(start_node, target_node)
-
-    start_node = robot.current_node
+    assert start_node in graph.get_all_nodes(), "Start must be a valid node identifier."
     assert target_node in graph.get_all_nodes(), "Target must be a valid node identifier."
 
     path = graph.find_path(start_node, target_node)
     return path if path else "Path not found."
-    
-    return path
 def get_alternative_path(target_node, blocked_nodes):
     """Global function to find an alternative path avoiding certain nodes."""
     global robot, graph
@@ -746,7 +741,7 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
 
             # Logic to determine item and user positioning
             # This logic assumes horizontal arrangement; adjust if your graph is more complex
-            offset_y = 30
+            offset_x = 30
             item_x = node_position[0]
             user_x = node_position[0]
 
@@ -754,11 +749,11 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
             if user and user.node_id == node_id:
                 # User is present at the node; decide where to place user and item
                 # This simple logic places the user to the left and the item to the right
-                user_y -= offset_y
-                item_y += offset_x
+                user_x -= offset_x
+                item_x += offset_x
             else:
                 # No user at the node; item can be placed directly at the node
-                item_x += offset_y  # Default placement to the right for simplicity
+                item_x += offset_x  # Default placement to the right for simplicity
 
             user_position = (user_x, node_position[1])
             item_position = (item_x, node_position[1] - item.image.get_height() // 2)
@@ -803,13 +798,20 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Computes an efficient trajectory from the robot's current node to a targeted node, devoid of considerations for potential impediments. It provides a sequence of nodes representing the shortest navigable route to the destination.",
+            "description": "Computes the most efficient path between a specified starting node and a target node, without accounting for possible obstacles. The function returns a sequence of nodes that represents the shortest navigable route from the start to the destination.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target_node": {"type": "string", "description": "Destination node for which the optimal path is required."}
+                    "start_node": {
+                        "type": "string",
+                        "description": "The node from which the path calculation begins."
+                    },
+                    "target_node": {
+                        "type": "string",
+                        "description": "The node that is the destination of the path calculation."
+                    }
                 },
-                "required": ["target_node"]
+                "required": ["start_node", "target_node"]
             }
         },
         {
@@ -870,7 +872,7 @@ llm_config = {
 user = autogen.UserProxyAgent(name="User", 
 human_input_mode="NEVER",
 is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"), 
-max_consecutive_auto_reply=30)
+max_consecutive_auto_reply=45)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
 system_message="""
@@ -886,7 +888,8 @@ Output:
 
 Movement Commands: Sequential move_robot commands, detailing node-to-node navigation.
 Interaction Commands: Item-related commands (pick_up_item_robot, drop_off_item_robot) tied to specific nodes.
-By adopting a more structured and detailed approach as i
+
+Once task is complete, reply with "TERMINATE"
 """)
 
 # Register functions with the UserProxyAgent
