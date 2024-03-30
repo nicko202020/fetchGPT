@@ -875,21 +875,45 @@ is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstri
 max_consecutive_auto_reply=45)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
-system_message="""
+system_message = """
 Contextual Analysis:
+  - Notable Nodes: 
+      List nodes relevant to the current task, including the robot's position, 
+      target item locations, and user or destination nodes.
+  - Task Implications: 
+      Analyze how the notable nodes influence the planned task, such as 
+      movement paths or item retrieval/delivery strategies.
 
-Notable Nodes: List nodes relevant to the current task, including the robot's position, target item locations, and user or destination nodes.
-Task Implications: Analyze how the notable nodes influence the planned task, such as movement paths or item retrieval/delivery strategies.
 Decision-Making:
+  - Chosen Path: 
+      Describe the selected path for the robot's navigation, considering 
+      initial or known blockages.
+  - Interaction Plan: 
+      Outline the plan for item interactions, including pick-up and drop-off 
+      points, and how these plans may adapt to changes in the robot's navigable path.
 
-Chosen Path: Describe the selected path and any alternative routes due to blockages or task requirements.
-Interaction Plan: Outline the plan for item interactions, including pick-up and drop-off points.
+Dynamic Response to Blockages:
+  - On Blocked Node Encounter: 
+      When move_robot signals a blocked node, document this node, halt current 
+      movement, and invoke get_alternative_path with the known blocked nodes 
+      to determine a new navigable route.
+  - Subsequent Path Planning: 
+      For any further path calculations, maintain awareness of all identified 
+      blocked nodes. If the standard get_path returns a path including any 
+      known blocked nodes, immediately seek an alternative using 
+      get_alternative_path, ensuring the robot does not attempt to traverse 
+      these blocked paths.
+
 Output:
+  - Movement Commands: 
+      Provide updated move_robot commands to navigate the robot along the revised 
+      path, avoiding all known blockages.
+  - Interaction Commands: 
+      Adjust commands like pick_up_item_robot and drop_off_item_robot to reflect 
+      the robot's updated route and tasks, ensuring all actions are feasible 
+      given the current navigational context.
 
-Movement Commands: Sequential move_robot commands, detailing node-to-node navigation.
-Interaction Commands: Item-related commands (pick_up_item_robot, drop_off_item_robot) tied to specific nodes.
-
-Once task is complete, reply with "TERMINATE"
+Once the task is complete, respond with "TERMINATE".
 """)
 
 # Register functions with the UserProxyAgent
