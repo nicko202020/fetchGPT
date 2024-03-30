@@ -798,17 +798,17 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Computes the most efficient path between a specified starting node and a target node, without accounting for possible obstacles. The function returns a sequence of nodes that represents the shortest navigable route from the start to the destination.",
+            "description": "Computes the most direct path from the robot's current location to the specified target node using the shortest available route. This function is used for initial path calculations before any blocked nodes are encountered or when there are no known obstructions. Should a path returned include any previously identified blocked nodes, 'get_alternative_path' should be used instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "start_node": {
                         "type": "string",
-                        "description": "The node from which the path calculation begins."
+                        "description": "The starting node from which the path calculation initiates."
                     },
                     "target_node": {
                         "type": "string",
-                        "description": "The node that is the destination of the path calculation."
+                        "description": "The endpoint node to which the path is calculated."
                     }
                 },
                 "required": ["start_node", "target_node"]
@@ -816,12 +816,20 @@ llm_config = {
         },
         {
             "name": "get_alternative_path",
-            "description": "Generates a detour to avoid blocked nodes, maintaining route progression despite unexpected obstacles. This function is critical for dynamic adaptation to changes or impediments within the robot's operating environment.",
+            "description": "Calculates an alternative path to the given target node, specifically designed to avoid any known blocked nodes. This function is essential after encountering a blocked node during navigation, ensuring the robot can reroute around the obstruction. It is vital for the system to maintain an updated list of blocked nodes and to use this function for recalculating routes whenever the original path is compromised.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target_node": {"type": "string", "description": "Destination node for the alternative path; blocked_nodes - List of nodes to circumvent."},
-                    "blocked_nodes": {"type": "array", "items": {"type": "string"}, "description": "List of nodes to circumvent."}
+
+                    "target_node": {
+                        "type": "string",
+                        "description": "The destination node for the recalculated path, avoiding blocked nodes."
+                    },
+                    "blocked_nodes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "An array of node identifiers that the recalculated path must avoid."
+                    }
                 },
                 "required": ["target_node", "blocked_nodes"]
             }
