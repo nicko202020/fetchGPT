@@ -679,7 +679,7 @@ def get_path(start_node, target_node):
 
     path = graph.find_path(start_node, target_node)
     return path if path else "Path not found."
-def get_alternative_path(target_node, blocked_nodes):
+def get_alternative_path(start_node, target_node, blocked_nodes):
     """Global function to find an alternative path avoiding certain nodes."""
     global robot, graph
     start_node = robot.current_node

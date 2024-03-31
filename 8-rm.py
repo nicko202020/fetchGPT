@@ -106,31 +106,19 @@ class Robot:
             self.image = pygame.transform.scale(self.image, (50, 50))  # Resize to 50x50 or any appropriate size
         self.held_item = None  # Initialize held_item as None
     def move_to_node(self, target_node):
-        path = self.graph.find_path(self.current_node, target_node)
-        if path:
-            for node in path[1:]:
-                # If moving to the graph's blocked node, record and report the blockage
-                if node == self.graph.blocked_node:
-                    # Here, we assume blocked_nodes is a list attribute of the Robot
-                    if node not in self.blocked_nodes:
-                        self.blocked_nodes.append(node)
-                        if self.logger:
-                            self.logger.log(f"Node {node} blocked")
-                        return f"Node {node} blocked"
-                
-                # Continue if the node is in the blocked_nodes list
-                if node in self.blocked_nodes:
-                    if self.logger:
-                        self.logger.log(f"Node {node} previously blocked")
-                    continue
-
-                # Update the robot's current position if not blocked
-                self.current_node = node
-                self.x, self.y = self.graph.get_node_coordinates(node)
-                if self.logger:
-                    self.logger.log(f"Moved to node {node}")
+        # No need to find a path; just check if the next node is blocked or not.
+        if target_node in self.graph.blocked_nodes:
+            # If trying to move to a blocked node, log the event and do not update position.
+            if self.logger:
+                self.logger.log(f"Attempted to move to blocked node {target_node}.")
+            return f"Node {target_node} blocked"
+        elif target_node in self.graph.get_all_nodes():
+            # Update the robot's current position to the target node if it is not blocked.
+            self.current_node = target_node
+            self.x, self.y = self.graph.get_node_coordinates(target_node)
+            if self.logger:
+                self.logger.log(f"Moved to node {target_node}.")
             return f"Moved to {target_node}"
-        return "Path not found"
 
     def move_to_coordinates(self, x, y):
         """Updates the robot's position based on coordinates. Not typically used with graph navigation."""
@@ -178,13 +166,14 @@ class Robot:
                 self.logger.log(f"Dropped off item {item_id} at {node_id}")
 
 class Graph:
-    def __init__(self, blocked_node=None):
+    def __init__(self, blocked_nodes=None):
         self.nodes = {}
         self.edges = {}
-        self.blocked_node = blocked_node
+        self.blocked_nodes = blocked_nodes if blocked_nodes else []
 
-    def set_blocked_node(self, node_id):
-        self.blocked_node = node_id
+    def add_blocked_node(self, node_id):
+        if node_id not in self.blocked_nodes:
+            self.blocked_nodes.append(node_id)
     def add_node(self, room_name, node_id, coordinates):
         if room_name not in self.nodes:
             self.nodes[room_name] = {}
@@ -485,34 +474,28 @@ def draw_user_on_map(screen, user, graph):
 
 
 def draw_dashboard():
-    global robot, font, SCREEN_HEIGHT  # Ensure all necessary globals are referenced
+    global robot, font, SCREEN_HEIGHT, graph, me  # Ensure all necessary globals are referenced
     """Draws the dashboard area with information about the robot's status."""
     pygame.draw.rect(screen, (0, 0, 0), [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
     current_room_text = font.render(f"Current Room: {get_current_robot_room()}", True, (255, 255, 255))
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
     screen.blit(current_position_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 50))
-        # Displaying information about the blocked node, user, and item locations on the right side
-    # Adjust the starting x position as needed, here assumed to be at 3/4th of the screen width
+    
+    # Displaying information about the blocked nodes, user, and item locations on the right side
     start_x = 3 * SCREEN_WIDTH // 4
-    line_height = 30  # Height of a line of text
-    y_offset = 10  # Initial offset from the top of the dashboard
+    line_height = 30
+    y_offset = 10
 
-    # Displaying the blocked node
-    blocked_node_text = font.render(f"Blocked Node: {graph.blocked_node}", True, WHITE)
-    screen.blit(blocked_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
-    y_offset += line_height
+    # Displaying the blocked nodes
+    for i, blocked_node in enumerate(graph.blocked_nodes, start=1):
+        blocked_node_text = font.render(f"Blocked Node {i}: {blocked_node}", True, WHITE)
+        screen.blit(blocked_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+        y_offset += line_height
 
     # Displaying the user's location
     user_node_text = font.render(f"User Node: {me.node_id}", True, WHITE)
     screen.blit(user_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
-    y_offset += line_height
-
-    # Displaying each item's location
-    for item_id, location in item_manager.get_all_items().items():
-        item_location_text = font.render(f"{item_id.capitalize()} Location: {location}", True, WHITE)
-        screen.blit(item_location_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
-        y_offset += line_height
 def handle_events():
     """Handles events such as input and quitting."""
     global running  # Assume 'running' is a flag controlling the main loop
@@ -615,7 +598,7 @@ def get_path(start_node, target_node):
 
     path = graph.find_path(start_node, target_node)
     return path if path else "Path not found."
-def get_alternative_path(target_node, blocked_nodes):
+def get_alternative_path(start_node, target_node, blocked_nodes):
     """Global function to find an alternative path avoiding certain nodes."""
     global robot, graph
     start_node = robot.current_node
@@ -730,99 +713,99 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
             # Draw item based on calculated position
             item.draw(screen, item_position, is_held=False)
 
-def randomize_entities(graph, items):
+def randomize_entities(graph, items, num_blocked):
     all_nodes = list(graph.get_all_nodes())
-    random.shuffle(all_nodes)
-    
-    # Assign blocked node first; it can be any node
-    blocked_node = all_nodes.pop()
 
-    # Filter out ineligible nodes for other entities
+    # Initialize the list for blocked nodes
+    blocked_nodes = []
+
+    # Assign blocked nodes with reshuffling before each assignment
+    for _ in range(num_blocked):
+        random.shuffle(all_nodes)
+        blocked_node = all_nodes.pop()
+        blocked_nodes.append(blocked_node)
+
+    # After assigning blocked nodes, filter and shuffle for other entities
     eligible_nodes = [node for node in all_nodes if not node.endswith('5') and not node.endswith('6')]
+
+    # Assign the robot node
     random.shuffle(eligible_nodes)
-
-    # Assign locations to robot, user, and items
     robot_node = eligible_nodes.pop()
+
+    # Assign the user node
+    random.shuffle(eligible_nodes)
     user_node = eligible_nodes.pop()
-    item_nodes = {item_id: eligible_nodes.pop() for item_id in items.keys()}
 
-    # Update the graph with the selected blocked node
-    graph.set_blocked_node(blocked_node)
+    # Assign item nodes
+    item_nodes = {}
+    for item_id in items.keys():
+        random.shuffle(eligible_nodes)
+        item_nodes[item_id] = eligible_nodes.pop()
 
-    return robot_node, user_node, item_nodes, blocked_node
+    # Return the assigned nodes
+    return robot_node, user_node, item_nodes, blocked_nodes
 
 # AutoGen configuration
 config_list = [
     {
         "model": "gpt-4-1106-preview",
         "api_key": "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",
+        "max_retries": 5
     }
 ]
 llm_config = {
     "functions": [
         {
             "name": "move_robot",
-            "description": " Directs the robot to sequentially advance to the next specified node within its navigation path. This function is instrumental for continuous movement, based on paths generated by 'get_path' or 'get_alternative_path'. The function is iteratively called to navigate node by node, handling dynamic obstructions by flagging any encountered blocked nodes.",
+            "description": "Moves the robot to the next specified node within the environment.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "next_node": {"type": "string", "description": " Identifier of the subsequent node in the robot's navigational route."}
+                    "next_node": {"type": "string", "description": "The identifier of the node to which the robot should move next."}
                 },
                 "required": ["next_node"]
             }
         },
-        {
-            "name": "get_room_nodes",
-            "description": "Obtains a collection of nodes within a designated room, enabling the robot to execute room-specific maneuvers or tasks. This function supports spatial awareness within the confined area, aiding in effective navigation or object interaction within that space.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "room_name": {"type": "string", "description": " Name of the room for which to retrieve nodes."}
-                },
-                "required": ["room_name"]
-            }
-        },
+        # {
+        #     "name": "get_room_nodes",
+        #     "description": "Retrieves all node identifiers within a specified room, aiding in navigation and planning.",
+        #     "parameters": {
+        #         "type": "object",
+        #         "properties": {
+        #             "room_name": {"type": "string", "description": "The name of the room for which node identifiers are requested."}
+        #         },
+        #         "required": ["room_name"]
+        #     }
+        # },
         {
             "name": "get_current_position",
-            "description": "Determines the robot's present node, a fundamental aspect for initializing navigation or assessing the robot's progression toward its objective. This function is essential for situational awareness and path planning.",
+            "description": "Returns the robot's current node, providing a reference point for navigation decisions.",
             "parameters": {}
         },
         {
             "name": "get_path",
-            "description": "Computes the most direct path from the robot's current location to the specified target node using the shortest available route. This function is used for initial path calculations before any blocked nodes are encountered or when there are no known obstructions. Should a path returned include any previously identified blocked nodes, 'get_alternative_path' should be used instead.",
+            "description": "Calculates the optimal path from the robot's current position to a target node, considering known obstacles.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "start_node": {
-                        "type": "string",
-                        "description": "The starting node from which the path calculation initiates."
-                    },
-                    "target_node": {
-                        "type": "string",
-                        "description": "The endpoint node to which the path is calculated."
-                    }
+                    "start_node": {"type": "string", "description": "The starting node for path calculation."},
+                    "target_node": {"type": "string", "description": "The destination node for the path."}
                 },
                 "required": ["start_node", "target_node"]
             }
         },
         {
             "name": "get_alternative_path",
-            "description": "Calculates an alternative path to the given target node, specifically designed to avoid any known blocked nodes. This function is essential after encountering a blocked node during navigation, ensuring the robot can reroute around the obstruction. It is vital for the system to maintain an updated list of blocked nodes and to use this function for recalculating routes whenever the original path is compromised.",
+            "description": "Calculates an alternative path avoiding specified blocked nodes, used when the primary route is obstructed.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "start_node": {
-                        "type": "string",
-                        "description": "The starting node from which the alternative path calculation begins."
-                    },
-                    "target_node": {
-                        "type": "string",
-                        "description": "The destination node for the recalculated path, avoiding blocked nodes."
-                    },
+                    "start_node": {"type": "string", "description": "The starting node for the alternative path calculation."},
+                    "target_node": {"type": "string", "description": "The endpoint node, avoiding blocked paths."},
                     "blocked_nodes": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "An array of node identifiers that the recalculated path must avoid."
+                        "description": "A list of node identifiers to be avoided in the path calculation."
                     }
                 },
                 "required": ["start_node", "target_node", "blocked_nodes"]
@@ -830,39 +813,39 @@ llm_config = {
         },
         {
             "name": "get_user_node",
-            "description": "Identifies the user's current node, crucial for user-centric tasks or interactions, enabling the robot to localize the user within its operational domain.",
+            "description": "Retrieves the current node identifier of the user, guiding the robot for item delivery.",
             "parameters": {}
         },
         {
             "name": "pick_up_item_robot",
-            "description": "Commands the robot to acquire a specified item within its reach, essential for object retrieval missions. This function underpins the robot's ability to interact with and transport physical objects.",
+            "description": "Commands the robot to pick up a specified item at its current location.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "item_id": {"type": "string", "description": "Identifier for the item to be picked up."}
+                    "item_id": {"type": "string", "description": "The identifier of the item the robot should pick up."}
                 },
                 "required": ["item_id"]
             }
         },
         {
             "name": "drop_off_item_robot",
-            "description": " Instructs the robot to deposit an item at a given node, integral to delivery or item placement tasks. This function is pivotal for transferring objects to designated locations.",
+            "description": "Instructs the robot to drop off the currently held item at a specified node.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "node_id": {"type": "string", "description": "Identifiers for the drop-off location"},
-                    "item_id": {"type": "string", "description": "Identifiers for the item"}
+                    "node_id": {"type": "string", "description": "The node where the item should be dropped off."},
+                    "item_id": {"type": "string", "description": "The identifier of the item to be dropped off."}
                 },
                 "required": ["node_id", "item_id"]
             }
         },
         {
-            "name": "get_item_location_robot",
-            "description": "Locates a specific item's node, facilitating retrieval or interaction strategies. This function is key for integrating object localization into the robot's task execution framework.",
+            "name": "get_item_location",
+            "description": "Retrieves the current location (node identifier) of a specified item within the environment.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "item_id": {"type": "string", "description": "Identifier of the item to locate."}
+                    "item_id": {"type": "string", "description": "The identifier of the item whose location is being requested."}
                 },
                 "required": ["item_id"]
             }
@@ -878,42 +861,28 @@ max_consecutive_auto_reply=45)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
 system_message = """
-Contextual Analysis:
-  - Notable Nodes: 
-      List nodes relevant to the current task, including the robot's position, 
-      target item locations, and user or destination nodes.
-  - Task Implications: 
-      Analyze how the notable nodes influence the planned task, such as 
-      movement paths or item retrieval/delivery strategies.
+**Robot Navigation Agent**
+Role: You are the intelligence of an autonomous robotic agent tasked with navigation and item retrieval in a dynamic 2D environment.
 
-Decision-Making:
-  - Chosen Path: 
-      Describe the selected path for the robot's navigation, considering 
-      initial or known blockages.
-  - Interaction Plan: 
-      Outline the plan for item interactions, including pick-up and drop-off 
-      points, and how these plans may adapt to changes in the robot's navigable path.
+Context:
+-Environment: A 2D grid representing rooms connected by nodes, with some nodes potentially blocked.
+-Objective: Navigate efficiently to retrieve and deliver items upon request, adapting to dynamic changes like blocked paths.
 
-Dynamic Response to Blockages:
-  - On Blocked Node Encounter: 
-      When move_robot signals a blocked node, document this node, halt current 
-      movement, and invoke get_alternative_path with the known blocked nodes 
-      to determine a new navigable route.
-  - Subsequent Path Planning: 
-      For any further path calculations, maintain awareness of all identified 
-      blocked nodes. If the standard get_path returns a path including any 
-      known blocked nodes, immediately seek an alternative using 
-      get_alternative_path, ensuring the robot does not attempt to traverse 
-      these blocked paths.
+Inputs:
+-Current Position: Your starting node within the environment.
+-Item Locations: Known locations of items that may need to be retrieved.
+-User Location: The node where the user, who requests item delivery, is located.
+-Graph Data: Information about the rooms, nodes, and their connections.
+
+Task:
+-Decision-Making: Determine the sequence of actions required to complete the delivery tasks, adapting to any new obstacles.
+-Path Planning: Generate optimal paths to move between nodes, retrieve items, and deliver them to the user.
+-Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes.
 
 Output:
-  - Movement Commands: 
-      Provide updated move_robot commands to navigate the robot along the revised 
-      path, avoiding all known blockages.
-  - Interaction Commands: 
-      Adjust commands like pick_up_item_robot and drop_off_item_robot to reflect 
-      the robot's updated route and tasks, ensuring all actions are feasible 
-      given the current navigational context.
+-Action Sequence: The series of steps (function calls) you plan to execute.
+-Path Details: Specific nodes you will traverse during task execution.
+-Obstacle Response: Your strategy for addressing any encountered obstacles.
 
 Once the task is complete, respond with "TERMINATE".
 """)
@@ -954,15 +923,17 @@ items = {
     'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
     'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\6924330.png', target_size=(25, 25)),
-    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\comb.jpg', target_size=(25, 25)),
+    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\comb.jpg', target_size=(35, 35)),
     'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\toothpaste.jpg', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
 
 }
+num_blocked_nodes = 8
 
-robot_node, user_node, item_nodes, blocked_node = randomize_entities(graph, items)
+# Randomize nodes for all entities and blocked nodes
+robot_node, user_node, item_nodes, blocked_nodes = randomize_entities(graph, items, num_blocked_nodes)
 
 # Update your entities with these nodes
 robot = Robot(robot_node, graph, robot_image_path, logger)
@@ -973,7 +944,7 @@ for item_id, node_id in item_nodes.items():
     item_manager.update_item_location(item_id, node_id)
 
 # Set the blocked node in the graph
-graph.set_blocked_node(blocked_node)
+graph.blocked_nodes = blocked_nodes
 running = True
 active = False  # For text input box state
 text = ''  # For storing input text
@@ -1015,18 +986,13 @@ while running:
     draw_room(office)  
     draw_room(guest_room)
     draw_room(gym)  
-
-
     draw_room(living_room)  
     draw_room(kitchen)
     draw_room(dining_room)
     draw_room(study_room)
-
-    
     draw_user_on_map(screen, me, graph)
-    # Draw items on the map
+
     draw_item_on_map(screen, robot, item_manager, items, graph, me)
-    draw_robot_path(robot, graph)  
     draw_robot(robot, screen)  
    
     # Optional: draw planned path or highlight decision points here

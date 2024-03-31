@@ -1,10 +1,1 @@
 Simulation Log
-Moved to node li5
-Moved to node gr6
-Moved to node gr3
-Moved to node gr4
-Moved to node gr5
-Moved to node lr6
-Moved to node lr3
-Moved to node lr4
-Moved to node lr5
