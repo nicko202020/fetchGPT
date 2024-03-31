@@ -4,6 +4,7 @@ import threading
 import random
 import datetime
 import time
+import random
 class User:
     def __init__(self, node_id, preferred_side='left', image_path=None, target_size=(50, 50)):
         self.node_id = node_id
@@ -179,13 +180,14 @@ class Robot:
             if self.logger:
                 self.logger.log(f"Dropped off item {item_id} at {node_id}")
 
-
 class Graph:
-    def __init__(self):
+    def __init__(self, blocked_node=None):
         self.nodes = {}
         self.edges = {}
-        self.blocked_node = 'lr5'
+        self.blocked_node = blocked_node
 
+    def set_blocked_node(self, node_id):
+        self.blocked_node = node_id
     def add_node(self, room_name, node_id, coordinates):
         if room_name not in self.nodes:
             self.nodes[room_name] = {}
@@ -538,6 +540,27 @@ def draw_dashboard():
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
     screen.blit(current_position_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 50))
+        # Displaying information about the blocked node, user, and item locations on the right side
+    # Adjust the starting x position as needed, here assumed to be at 3/4th of the screen width
+    start_x = 3 * SCREEN_WIDTH // 4
+    line_height = 30  # Height of a line of text
+    y_offset = 10  # Initial offset from the top of the dashboard
+
+    # Displaying the blocked node
+    blocked_node_text = font.render(f"Blocked Node: {graph.blocked_node}", True, WHITE)
+    screen.blit(blocked_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+    y_offset += line_height
+
+    # Displaying the user's location
+    user_node_text = font.render(f"User Node: {me.node_id}", True, WHITE)
+    screen.blit(user_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+    y_offset += line_height
+
+    # Displaying each item's location
+    for item_id, location in item_manager.get_all_items().items():
+        item_location_text = font.render(f"{item_id.capitalize()} Location: {location}", True, WHITE)
+        screen.blit(item_location_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+        y_offset += line_height
 def handle_events():
     """Handles events such as input and quitting."""
     global running  # Assume 'running' is a flag controlling the main loop
@@ -575,16 +598,23 @@ def handle_text_input(events):
             else:
                 text += event.unicode  # Add character to text input
 
-def execute_command(command):
-    def llm_thread():
-        # Initiating chat with the AutoGen agent using the provided command
-        response = user.initiate_chat(
-            robot_agent,
-            message=command
-        )
-
-    # Start the LLM communication in a separate thread
-    threading.Thread(target=llm_thread).start()
+def execute_command_async(command):
+    """
+    This function starts a new thread to execute a command asynchronously.
+    
+    Args:
+    command (str): The command to be executed.
+    """
+    def thread_target():
+        try:
+            # Assuming 'user' and 'robot_agent' are accessible globally
+            global user, robot_agent
+            user.initiate_chat(robot_agent, message=command)
+        except Exception as e:
+            print(f"Error executing command: {e}")
+    
+    command_thread = threading.Thread(target=thread_target)
+    command_thread.start()
 def log_message(message):
     global conversation_log
     conversation_log.append(message)
@@ -760,6 +790,28 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
 
             # Draw item based on calculated position
             item.draw(screen, item_position, is_held=False)
+
+def randomize_entities(graph, items):
+    all_nodes = list(graph.get_all_nodes())
+    random.shuffle(all_nodes)
+    
+    # Assign blocked node first; it can be any node
+    blocked_node = all_nodes.pop()
+
+    # Filter out ineligible nodes for other entities
+    eligible_nodes = [node for node in all_nodes if not node.endswith('5') and not node.endswith('6')]
+    random.shuffle(eligible_nodes)
+
+    # Assign locations to robot, user, and items
+    robot_node = eligible_nodes.pop()
+    user_node = eligible_nodes.pop()
+    item_nodes = {item_id: eligible_nodes.pop() for item_id in items.keys()}
+
+    # Update the graph with the selected blocked node
+    graph.set_blocked_node(blocked_node)
+
+    return robot_node, user_node, item_nodes, blocked_node
+
 # AutoGen configuration
 config_list = [
     {
@@ -820,7 +872,10 @@ llm_config = {
             "parameters": {
                 "type": "object",
                 "properties": {
-
+                    "start_node": {
+                        "type": "string",
+                        "description": "The starting node from which the alternative path calculation begins."
+                    },
                     "target_node": {
                         "type": "string",
                         "description": "The destination node for the recalculated path, avoiding blocked nodes."
@@ -831,7 +886,7 @@ llm_config = {
                         "description": "An array of node identifiers that the recalculated path must avoid."
                     }
                 },
-                "required": ["target_node", "blocked_nodes"]
+                "required": ["start_node", "target_node", "blocked_nodes"]
             }
         },
         {
@@ -939,6 +994,10 @@ user.register_function(
         "get_user_node": get_user_node
     }
 )
+# Initialize the robot at a given start node
+logger = Logger()  
+MAX_MESSAGES = 5  # Maximum number of messages to display
+conversation_log = []  # Holds the most recent conversation lines
 
 setup_simulation()
 create_rooms_and_graph()
@@ -947,31 +1006,35 @@ SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 font = pygame.font.Font(None, 36)  # Basic font for text rendering
 WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
-
-
-
-
-
-initialize_robot("lr1")
 user_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\pngtree-man-in-shirt-smiles-and-gives-thumbs-up-to-show-approval-png-image_10094381.png'
-me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
-# Initialize the robot at a given start node
-logger = Logger()  
-MAX_MESSAGES = 5  # Maximum number of messages to display
-conversation_log = []  # Holds the most recent conversation lines
 robot_image_path = r'C:\Users\oeini\OneDrive\Documents\\GitHub\current\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
-robot = Robot("lr1", graph, robot_image_path, logger)
- 
+me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
+
 item_manager = ItemLocationManager()
-# Initialize items and their locations
 items = {
     'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\6924330.png', target_size=(25, 25)),
+    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\comb.jpg', target_size=(25, 25)),
+    'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\toothpaste.jpg', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+
 }
 
-# Update the locations for the items
-item_manager.update_item_location('water', 'lr1')
-item_manager.update_item_location('banana', 'k4')
+robot_node, user_node, item_nodes, blocked_node = randomize_entities(graph, items)
+
+# Update your entities with these nodes
+robot = Robot(robot_node, graph, robot_image_path, logger)
+me = User(node_id=user_node, preferred_side='left', image_path=user_image_path)
+
+# Update item locations in the item manager
+for item_id, node_id in item_nodes.items():
+    item_manager.update_item_location(item_id, node_id)
+
+# Set the blocked node in the graph
+graph.set_blocked_node(blocked_node)
 running = True
 active = False  # For text input box state
 text = ''  # For storing input text
@@ -993,16 +1056,17 @@ while running:
             else:
                 active = False
             color = color_active if active else color_inactive
+        # Inside your event handling loop
         elif event.type == pygame.KEYDOWN:
             if active:
                 if event.key == pygame.K_RETURN:
-                    # Here you might handle the command, possibly affecting the robot and items
-                    execute_command(text)  # Modify to execute commands
-                    text = ''
+                    # Call the asynchronous execution function
+                    execute_command_async(text)
+                    text = ''  # Clear the text input after executing the command
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
+                    text = text[:-1]  # Handle backspace
                 else:
-                    text += event.unicode
+                    text += event.unicode  # Append typed character to the text
 
     # Fill the screen with white
     screen.fill(BLACK)

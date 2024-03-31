@@ -901,9 +901,6 @@ while running:
     draw_edges(graph, screen)  
     draw_room(living_room)  
     draw_room(study_room)
-    draw_room(bedroom)
-    draw_room(bathroom)
-    
     
     
 
