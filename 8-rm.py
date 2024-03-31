@@ -645,7 +645,7 @@ def draw_nodes(graph, robot):
     GRAY = (192, 192, 192)
     for room, nodes in graph.nodes.items():
         for node_id, coordinates in nodes.items():
-            node_color = RED if node_id in robot.blocked_nodes else GRAY
+            node_color = RED if node_id in graph.blocked_nodes else GRAY
             pygame.draw.circle(screen, node_color, coordinates, 5)
 
 global item_manager
@@ -748,9 +748,9 @@ def randomize_entities(graph, items, num_blocked):
 # AutoGen configuration
 config_list = [
     {
-        "model": "gpt-4-1106-preview",
+        "model": "gpt-3.5-turbo-0125",
         "api_key": "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",
-        "max_retries": 5
+        "max_retries": 15
     }
 ]
 llm_config = {
@@ -930,7 +930,7 @@ items = {
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
 
 }
-num_blocked_nodes = 8
+num_blocked_nodes = 4
 
 # Randomize nodes for all entities and blocked nodes
 robot_node, user_node, item_nodes, blocked_nodes = randomize_entities(graph, items, num_blocked_nodes)
@@ -1008,5 +1008,5 @@ while running:
     pygame.draw.rect(screen, color, input_box, 2)
 
     pygame.display.flip()   
-    time.sleep(1)
+    time.sleep(0.5)
 pygame.quit()   
