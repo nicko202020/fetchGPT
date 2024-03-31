@@ -4,6 +4,7 @@ import threading
 import random
 import datetime
 import time
+import random
 class User:
     def __init__(self, node_id, preferred_side='left', image_path=None, target_size=(50, 50)):
         self.node_id = node_id
@@ -179,13 +180,14 @@ class Robot:
             if self.logger:
                 self.logger.log(f"Dropped off item {item_id} at {node_id}")
 
-
 class Graph:
-    def __init__(self):
+    def __init__(self, blocked_node=None):
         self.nodes = {}
         self.edges = {}
-        self.blocked_node = 'lr5'
+        self.blocked_node = blocked_node
 
+    def set_blocked_node(self, node_id):
+        self.blocked_node = node_id
     def add_node(self, room_name, node_id, coordinates):
         if room_name not in self.nodes:
             self.nodes[room_name] = {}
@@ -439,13 +441,6 @@ def create_rooms_and_graph():
     bathroom.add_edge("ba3", "ba4")
     bathroom.add_edge("ba2", "ba4")
 
-
-
-
-
-
-
-
 def initialize_robot(start_node="lr1"):
     """Initializes the robot at a given start node."""
     global robot, logger
@@ -561,6 +556,27 @@ def draw_dashboard():
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
     screen.blit(current_position_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 50))
+        # Displaying information about the blocked node, user, and item locations on the right side
+    # Adjust the starting x position as needed, here assumed to be at 3/4th of the screen width
+    start_x = 3 * SCREEN_WIDTH // 4
+    line_height = 30  # Height of a line of text
+    y_offset = 10  # Initial offset from the top of the dashboard
+
+    # Displaying the blocked node
+    blocked_node_text = font.render(f"Blocked Node: {graph.blocked_node}", True, WHITE)
+    screen.blit(blocked_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+    y_offset += line_height
+
+    # Displaying the user's location
+    user_node_text = font.render(f"User Node: {me.node_id}", True, WHITE)
+    screen.blit(user_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+    y_offset += line_height
+
+    # Displaying each item's location
+    for item_id, location in item_manager.get_all_items().items():
+        item_location_text = font.render(f"{item_id.capitalize()} Location: {location}", True, WHITE)
+        screen.blit(item_location_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
+        y_offset += line_height
 def handle_events():
     """Handles events such as input and quitting."""
     global running  # Assume 'running' is a flag controlling the main loop
@@ -598,16 +614,23 @@ def handle_text_input(events):
             else:
                 text += event.unicode  # Add character to text input
 
-def execute_command(command):
-    def llm_thread():
-        # Initiating chat with the AutoGen agent using the provided command
-        response = user.initiate_chat(
-            robot_agent,
-            message=command
-        )
-
-    # Start the LLM communication in a separate thread
-    threading.Thread(target=llm_thread).start()
+def execute_command_async(command):
+    """
+    This function starts a new thread to execute a command asynchronously.
+    
+    Args:
+    command (str): The command to be executed.
+    """
+    def thread_target():
+        try:
+            # Assuming 'user' and 'robot_agent' are accessible globally
+            global user, robot_agent
+            user.initiate_chat(robot_agent, message=command)
+        except Exception as e:
+            print(f"Error executing command: {e}")
+    
+    command_thread = threading.Thread(target=thread_target)
+    command_thread.start()
 def log_message(message):
     global conversation_log
     conversation_log.append(message)
@@ -648,19 +671,14 @@ def get_robot_current_room():
     global robot  # Assuming 'robot' is an instance of the Robot class
     return robot.current_room()
 
-def get_path(target_node):
-    """Global function to find a path to the target node."""
+def get_path(start_node, target_node):
+    """Global function to find a path from the start node to the target node."""
     global robot, graph
-    start_node = robot.current_node
-    return graph.find_path(start_node, target_node)
-
-    start_node = robot.current_node
+    assert start_node in graph.get_all_nodes(), "Start must be a valid node identifier."
     assert target_node in graph.get_all_nodes(), "Target must be a valid node identifier."
 
     path = graph.find_path(start_node, target_node)
     return path if path else "Path not found."
-    
-    return path
 def get_alternative_path(target_node, blocked_nodes):
     """Global function to find an alternative path avoiding certain nodes."""
     global robot, graph
@@ -769,7 +787,7 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
 
             # Logic to determine item and user positioning
             # This logic assumes horizontal arrangement; adjust if your graph is more complex
-            offset_y = 30
+            offset_x = 30
             item_x = node_position[0]
             user_x = node_position[0]
 
@@ -777,17 +795,39 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
             if user and user.node_id == node_id:
                 # User is present at the node; decide where to place user and item
                 # This simple logic places the user to the left and the item to the right
-                user_y -= offset_y
-                item_y += offset_x
+                user_x -= offset_x
+                item_x += offset_x
             else:
                 # No user at the node; item can be placed directly at the node
-                item_x += offset_y  # Default placement to the right for simplicity
+                item_x += offset_x  # Default placement to the right for simplicity
 
             user_position = (user_x, node_position[1])
             item_position = (item_x, node_position[1] - item.image.get_height() // 2)
 
             # Draw item based on calculated position
             item.draw(screen, item_position, is_held=False)
+
+def randomize_entities(graph, items):
+    all_nodes = list(graph.get_all_nodes())
+    random.shuffle(all_nodes)
+    
+    # Assign blocked node first; it can be any node
+    blocked_node = all_nodes.pop()
+
+    # Filter out ineligible nodes for other entities
+    eligible_nodes = [node for node in all_nodes if not node.endswith('5') and not node.endswith('6')]
+    random.shuffle(eligible_nodes)
+
+    # Assign locations to robot, user, and items
+    robot_node = eligible_nodes.pop()
+    user_node = eligible_nodes.pop()
+    item_nodes = {item_id: eligible_nodes.pop() for item_id in items.keys()}
+
+    # Update the graph with the selected blocked node
+    graph.set_blocked_node(blocked_node)
+
+    return robot_node, user_node, item_nodes, blocked_node
+
 # AutoGen configuration
 config_list = [
     {
@@ -826,25 +866,43 @@ llm_config = {
         },
         {
             "name": "get_path",
-            "description": "Computes an efficient trajectory from the robot's current node to a targeted node, devoid of considerations for potential impediments. It provides a sequence of nodes representing the shortest navigable route to the destination.",
+            "description": "Computes the most direct path from the robot's current location to the specified target node using the shortest available route. This function is used for initial path calculations before any blocked nodes are encountered or when there are no known obstructions. Should a path returned include any previously identified blocked nodes, 'get_alternative_path' should be used instead.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target_node": {"type": "string", "description": "Destination node for which the optimal path is required."}
+                    "start_node": {
+                        "type": "string",
+                        "description": "The starting node from which the path calculation initiates."
+                    },
+                    "target_node": {
+                        "type": "string",
+                        "description": "The endpoint node to which the path is calculated."
+                    }
                 },
-                "required": ["target_node"]
+                "required": ["start_node", "target_node"]
             }
         },
         {
             "name": "get_alternative_path",
-            "description": "Generates a detour to avoid blocked nodes, maintaining route progression despite unexpected obstacles. This function is critical for dynamic adaptation to changes or impediments within the robot's operating environment.",
+            "description": "Calculates an alternative path to the given target node, specifically designed to avoid any known blocked nodes. This function is essential after encountering a blocked node during navigation, ensuring the robot can reroute around the obstruction. It is vital for the system to maintain an updated list of blocked nodes and to use this function for recalculating routes whenever the original path is compromised.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "target_node": {"type": "string", "description": "Destination node for the alternative path; blocked_nodes - List of nodes to circumvent."},
-                    "blocked_nodes": {"type": "array", "items": {"type": "string"}, "description": "List of nodes to circumvent."}
+                    "start_node": {
+                        "type": "string",
+                        "description": "The starting node from which the alternative path calculation begins."
+                    },
+                    "target_node": {
+                        "type": "string",
+                        "description": "The destination node for the recalculated path, avoiding blocked nodes."
+                    },
+                    "blocked_nodes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "An array of node identifiers that the recalculated path must avoid."
+                    }
                 },
-                "required": ["target_node", "blocked_nodes"]
+                "required": ["start_node", "target_node", "blocked_nodes"]
             }
         },
         {
@@ -893,23 +951,48 @@ llm_config = {
 user = autogen.UserProxyAgent(name="User", 
 human_input_mode="NEVER",
 is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"), 
-max_consecutive_auto_reply=90)
+max_consecutive_auto_reply=45)
 robot_agent = autogen.AssistantAgent(name="Robot", 
 llm_config=llm_config, 
-system_message="""
+system_message = """
 Contextual Analysis:
+  - Notable Nodes: 
+      List nodes relevant to the current task, including the robot's position, 
+      target item locations, and user or destination nodes.
+  - Task Implications: 
+      Analyze how the notable nodes influence the planned task, such as 
+      movement paths or item retrieval/delivery strategies.
 
-Notable Nodes: List nodes relevant to the current task, including the robot's position, target item locations, and user or destination nodes.
-Task Implications: Analyze how the notable nodes influence the planned task, such as movement paths or item retrieval/delivery strategies.
 Decision-Making:
+  - Chosen Path: 
+      Describe the selected path for the robot's navigation, considering 
+      initial or known blockages.
+  - Interaction Plan: 
+      Outline the plan for item interactions, including pick-up and drop-off 
+      points, and how these plans may adapt to changes in the robot's navigable path.
 
-Chosen Path: Describe the selected path and any alternative routes due to blockages or task requirements.
-Interaction Plan: Outline the plan for item interactions, including pick-up and drop-off points.
+Dynamic Response to Blockages:
+  - On Blocked Node Encounter: 
+      When move_robot signals a blocked node, document this node, halt current 
+      movement, and invoke get_alternative_path with the known blocked nodes 
+      to determine a new navigable route.
+  - Subsequent Path Planning: 
+      For any further path calculations, maintain awareness of all identified 
+      blocked nodes. If the standard get_path returns a path including any 
+      known blocked nodes, immediately seek an alternative using 
+      get_alternative_path, ensuring the robot does not attempt to traverse 
+      these blocked paths.
+
 Output:
+  - Movement Commands: 
+      Provide updated move_robot commands to navigate the robot along the revised 
+      path, avoiding all known blockages.
+  - Interaction Commands: 
+      Adjust commands like pick_up_item_robot and drop_off_item_robot to reflect 
+      the robot's updated route and tasks, ensuring all actions are feasible 
+      given the current navigational context.
 
-Movement Commands: Sequential move_robot commands, detailing node-to-node navigation.
-Interaction Commands: Item-related commands (pick_up_item_robot, drop_off_item_robot) tied to specific nodes.
-By adopting a more structured and detailed approach as i
+Once the task is complete, respond with "TERMINATE".
 """)
 
 # Register functions with the UserProxyAgent
@@ -927,6 +1010,10 @@ user.register_function(
         "get_user_node": get_user_node
     }
 )
+# Initialize the robot at a given start node
+logger = Logger()  
+MAX_MESSAGES = 5  # Maximum number of messages to display
+conversation_log = []  # Holds the most recent conversation lines
 
 setup_simulation()
 create_rooms_and_graph()
@@ -935,31 +1022,35 @@ SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 font = pygame.font.Font(None, 36)  # Basic font for text rendering
 WHITE, RED, BLACK = (255, 255, 255), (255, 0, 0), (0, 0, 0)
-
-
-
-
-
-initialize_robot("lr1")
 user_image_path = r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\pngtree-man-in-shirt-smiles-and-gives-thumbs-up-to-show-approval-png-image_10094381.png'
-me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
-# Initialize the robot at a given start node
-logger = Logger()  
-MAX_MESSAGES = 5  # Maximum number of messages to display
-conversation_log = []  # Holds the most recent conversation lines
 robot_image_path = r'C:\Users\oeini\OneDrive\Documents\\GitHub\current\robot-llm\143b8e1550deda3eadf5a8c0045cbb0f-robot-toy-flat-removebg-preview.png'
-robot = Robot("lr1", graph, robot_image_path, logger)
- 
+me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
+
 item_manager = ItemLocationManager()
-# Initialize items and their locations
 items = {
     'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\6924330.png', target_size=(25, 25)),
+    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\comb.jpg', target_size=(25, 25)),
+    'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\toothpaste.jpg', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+
 }
 
-# Update the locations for the items
-item_manager.update_item_location('water', 'lr1')
-item_manager.update_item_location('banana', 'k4')
+robot_node, user_node, item_nodes, blocked_node = randomize_entities(graph, items)
+
+# Update your entities with these nodes
+robot = Robot(robot_node, graph, robot_image_path, logger)
+me = User(node_id=user_node, preferred_side='left', image_path=user_image_path)
+
+# Update item locations in the item manager
+for item_id, node_id in item_nodes.items():
+    item_manager.update_item_location(item_id, node_id)
+
+# Set the blocked node in the graph
+graph.set_blocked_node(blocked_node)
 running = True
 active = False  # For text input box state
 text = ''  # For storing input text
@@ -981,16 +1072,17 @@ while running:
             else:
                 active = False
             color = color_active if active else color_inactive
+        # Inside your event handling loop
         elif event.type == pygame.KEYDOWN:
             if active:
                 if event.key == pygame.K_RETURN:
-                    # Here you might handle the command, possibly affecting the robot and items
-                    execute_command(text)  # Modify to execute commands
-                    text = ''
+                    # Call the asynchronous execution function
+                    execute_command_async(text)
+                    text = ''  # Clear the text input after executing the command
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
+                    text = text[:-1]  # Handle backspace
                 else:
-                    text += event.unicode
+                    text += event.unicode  # Append typed character to the text
 
     # Fill the screen with white
     screen.fill(BLACK)
@@ -1006,8 +1098,7 @@ while running:
     draw_room(kitchen)
     draw_room(dining_room)
     draw_room(study_room)
-    draw_room(bedroom)
-    draw_room(bathroom)
+
     
     draw_user_on_map(screen, me, graph)
     # Draw items on the map

@@ -50,9 +50,6 @@ class ItemLocationManager:
     def update_item_location(self, item_id, node_id):
         self.item_locations[item_id] = node_id
 
-    def get_item_location(self, item_id):
-        return self.item_locations.get(item_id)
-
     def remove_item(self, item_id):
         if item_id in self.item_locations:
             del self.item_locations[item_id]
@@ -415,13 +412,6 @@ def create_rooms_and_graph():
     dining_room.add_edge("d3", "d5")
     dining_room.add_edge("d5", "d1")
 
-    
-
-
-
-
-
-
 
 
 
@@ -437,24 +427,7 @@ def setup_simulation():
     initialize_pygame()
     create_rooms_and_graph()
     initialize_robot()
-def navigate_robot_to_node(target_node):
-    """Instructs the robot to navigate to a specified target node."""
-    global robot  
-    result = robot.move_to_node(target_node)
-    if robot.logger:
-        robot.logger.log_info(f"Navigation result: {result}")
-    return result
 
-def find_shortest_path(start_node, end_node):
-    """Finds the shortest path between two nodes using the graph's pathfinding algorithm."""
-    global graph  # Ensure the graph instance is accessible
-    path = graph.find_path(start_node, end_node)
-    if not path:
-        return "No path found."
-    # Optionally, log the found path
-    if robot.logger:
-        robot.logger.log_info(f"Found path from {start_node} to {end_node}: {path}")
-    return path
 
 def update_robot_position(new_x, new_y):
     """Updates the robot's position. This function might be less used with graph navigation but is here for completeness."""
@@ -509,28 +482,7 @@ def draw_user_on_map(screen, user, graph):
         # Fallback: Draw a simple circle if no image is provided
         offset_x = -20 if user.preferred_side == 'left' else 20  # Offset for the circle representation
         pygame.draw.circle(screen, (0, 0, 255), (node_position[0] + offset_x, node_position[1]), 10)
-def draw_path(path):
-    """Draws the path the robot plans to take."""
-    if len(path) > 1:
-        for i in range(len(path) - 1):
-            start_pos = graph.get_node_coordinates(path[i])
-            end_pos = graph.get_node_coordinates(path[i+1])
-            pygame.draw.line(screen, (0, 255, 0), start_pos, end_pos, 2)
 
-
-
-def highlight_decision_point(node):
-    """Highlights a node where a decision is made."""
-    coordinates = graph.get_node_coordinates(node)
-    pygame.draw.circle(screen, (255, 255, 0), coordinates, 15, 2)
-
-def draw_subtask_paths(subtasks):
-    """Draws visual cues for subtasks, assuming subtasks are represented as paths."""
-    for subtask in subtasks:
-        start_node, end_node = subtask
-        start_pos = graph.get_node_coordinates(start_node)
-        end_pos = graph.get_node_coordinates(end_node)
-        pygame.draw.line(screen, (255, 165, 0), start_pos, end_pos, 1)
 
 def draw_dashboard():
     global robot, font, SCREEN_HEIGHT  # Ensure all necessary globals are referenced
@@ -712,19 +664,6 @@ def draw_nodes(graph, robot):
         for node_id, coordinates in nodes.items():
             node_color = RED if node_id in robot.blocked_nodes else GRAY
             pygame.draw.circle(screen, node_color, coordinates, 5)
-def draw_robot_path(robot, graph, color=(250, 255, 0)):
-    if robot.path:
-        for i in range(len(robot.path) - 1):
-            start_pos = graph.get_node_coordinates(robot.path[i])
-            end_pos = graph.get_node_coordinates(robot.path[i + 1])
-            pygame.draw.line(screen, color, start_pos, end_pos, 5)
-
-def render_items(item_manager, graph, screen, robot):
-    for item_id, node_id in item_manager.item_locations.items():
-        node_coordinates = graph.get_node_coordinates(node_id)
-        # Check if the item is not held by the robot
-        if not (robot.held_item and robot.held_item.item_id == item_id):
-            draw_item(screen, node_coordinates, (255, 255, 0), 20)  # Yellow color, size of 20
 
 global item_manager
 
@@ -738,7 +677,7 @@ def drop_off_item_robot(item_id, node_id):
     global robot
     return robot.drop_off_item(item_manager, item_id, node_id)
 
-def get_item_location_robot(item_id):
+def get_item_location(item_id):
     """Global function to get the location of an item."""
     global item_manager
     return item_manager.get_item_location(item_id)
@@ -990,7 +929,7 @@ user.register_function(
         "get_alternative_path": get_alternative_path,  
         "pick_up_item_robot": pick_up_item_robot,
         "drop_off_item_robot": drop_off_item_robot,
-        "get_item_location_robot": get_item_location_robot,
+        "get_item_location": get_item_location,
         "get_user_node": get_user_node
     }
 )
