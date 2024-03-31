@@ -477,7 +477,13 @@ def draw_dashboard():
     global robot, font, SCREEN_HEIGHT, graph, me,start_conditions, command_message # Ensure all necessary globals are referenced
     """Draws the dashboard area with information about the robot's status."""
     pygame.draw.rect(screen, (0, 0, 0), [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
-    
+    # Render and display the starting conditions
+    conditions_text = font.render(start_conditions, True, (255, 255, 255))
+    screen.blit(conditions_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
+
+    # Render and display the command message
+    command_text = font.render(f"Command: {command_message}", True, (255, 255, 255))
+    screen.blit(command_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 40))  # Adjust the y position to avoid overlap
     current_room_text = font.render(f"Current Room: {get_current_robot_room()}", True, (255, 255, 255))
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
@@ -864,7 +870,8 @@ robot_agent = autogen.AssistantAgent(name="Robot",
 llm_config=llm_config, 
 system_message = """
 **Robot Navigation Agent**
-Role: You are the intelligence of an autonomous robotic agent tasked with navigation and item retrieval in a dynamic 2D environment.
+Role: You take on the role of autonomous robotic agent tasked with navigation and item retrieval in a dynamic 2D environment. You use functions to 
+perceive, navigate, and interact with your environment.
 
 Context:
 -Environment: A 2D grid representing rooms connected by nodes, with some nodes potentially blocked.
@@ -882,7 +889,8 @@ Task:
 -Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes.
 
 Output:
--Action Sequence: The series of steps (function calls) you plan to execute.
+-Plan Action Sequence: The series of steps you plan to execute.
+-Execute Action Sequence: The series of steps (function calls) you plan to execute.
 -Path Details: Specific nodes you will traverse during task execution.
 -Obstacle Response: Your strategy for addressing any encountered obstacles.
 
