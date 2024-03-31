@@ -474,9 +474,10 @@ def draw_user_on_map(screen, user, graph):
 
 
 def draw_dashboard():
-    global robot, font, SCREEN_HEIGHT, graph, me  # Ensure all necessary globals are referenced
+    global robot, font, SCREEN_HEIGHT, graph, me,start_conditions, command_message # Ensure all necessary globals are referenced
     """Draws the dashboard area with information about the robot's status."""
     pygame.draw.rect(screen, (0, 0, 0), [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
+    
     current_room_text = font.render(f"Current Room: {get_current_robot_room()}", True, (255, 255, 255))
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
@@ -748,9 +749,10 @@ def randomize_entities(graph, items, num_blocked):
 # AutoGen configuration
 config_list = [
     {
-        "model": "gpt-3.5-turbo-0125",
+        "model": "gpt-4-0125-preview",
         "api_key": "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",
-        "max_retries": 15
+        "max_retries": 15,
+        "timeout": 300
     }
 ]
 llm_config = {
@@ -851,7 +853,7 @@ llm_config = {
             }
         },
     ],
-    "config_list": config_list,
+    "config_list": config_list, "max_retries": 20, "timeout": 100,
 }
 # Initialize AutoGen agents
 user = autogen.UserProxyAgent(name="User", 
@@ -954,7 +956,11 @@ input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
 color_inactive = pygame.Color('lightskyblue3')
 color_active = pygame.Color('dodgerblue2')
 color = color_inactive
-
+random_item = random.choice(list(items.keys()))
+randomitem_node = item_nodes[item_id]
+command_message = f"Bring {item_id} to me"
+response = user.initiate_chat(robot_agent, message=command_message)
+start_conditions = "Robot at {robot_node}, {item_id} at {item_node}, User at {user_node}"
 while running:
     events = pygame.event.get()
     for event in events:
