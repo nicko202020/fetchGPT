@@ -353,30 +353,62 @@ def create_rooms_and_graph():
     living_room.add_node("lr3", (710, 490))  
     living_room.add_node("lr4", (910, 490)) 
     living_room.add_node("lr5", (710, 390))  
+    living_room.add_node("lr6", (910, 390))  
     living_room.add_edge("lr1", "lr2")
-    living_room.add_edge("lr2", "lr4")
+    living_room.add_edge("lr2", "lr6")
+    living_room.add_edge("lr6", "lr4")
     living_room.add_edge("lr3", "lr4")
     living_room.add_edge("lr3", "lr5")
     living_room.add_edge("lr5", "lr1")
 
     study_room = Room("study room", 660, 540, 960, 840, graph)    
-    study_room.add_node("s1", (710, 790))  
-    study_room.add_node("s2", (910, 790))  
-    study_room.add_node("s3", (710, 590))  
-    study_room.add_node("s4", (910, 590))  
-    study_room.add_node("s5", (710, 690)) 
-
+    study_room.add_node("s1", (710, 590))  
+    study_room.add_node("s2", (910, 590))  
+    study_room.add_node("s3", (710, 790))  
+    study_room.add_node("s4", (910, 790))  
+    study_room.add_node("s5", (910, 690)) 
+    study_room.add_node("s6", (710, 690)) 
     study_room.add_edge("s1", "s2")
-    study_room.add_edge("s2", "s4")
+    study_room.add_edge("s2", "s6")
+    study_room.add_edge("s6", "s4")
     study_room.add_edge("s4", "s3")
     study_room.add_edge("s3", "s5")
     study_room.add_edge("s1", "s5")
     
     graph.add_edge("lr4", "s2")
+    graph.add_edge("lr6", "k5")
+    graph.add_edge("d5", "s6")
 
 
+    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)         # Right-top room
+    kitchen.add_node("k1", (1010, 290))  # Adjusted from (450, 150)
+    kitchen.add_node("k2", (1210, 290))  # Adjusted from (650, 150)
+    kitchen.add_node("k3", (1010, 490))  # Adjusted from (450, 350)
+    kitchen.add_node("k4", (1210, 490))  # Adjusted from (650, 350)
+    kitchen.add_node("k5", (1010, 390))  # Node near the boundary towards the Living Room
+    kitchen.add_node("k6", (1210, 390))  # Node near the boundary towards the Living Room
+    kitchen.add_edge("k1", "k5")
+    kitchen.add_edge("k5", "k3")
+    kitchen.add_edge("k3", "k4")
+    kitchen.add_edge("k4", "k6")
+    kitchen.add_edge("k6", "k2")
+    kitchen.add_edge("k1", "k2")
+    graph.add_edge("k4", "d2")
 
-  
+    
+    dining_room = Room("dining room", 960, 540, 1260, 840, graph) # Right-bottom room
+    dining_room.add_node("d1", (1010, 590))  # Adjusted from (450, 450)
+    dining_room.add_node("d2", (1210, 590))  # Adjusted from (650, 450)
+    dining_room.add_node("d3", (1010, 790))  # Adjusted from (450, 650)
+    dining_room.add_node("d4", (1210, 790))  # Adjusted from (650, 650)
+    dining_room.add_node("d5", (1010, 690))  # Node near the boundary towards the Kitchen
+    dining_room.add_node("d6", (1210, 690))  # Node near the boundary towards the Kitchen
+    dining_room.add_edge("d1", "d2")
+    dining_room.add_edge("d2", "d6")
+    dining_room.add_edge("d6", "d4")
+    dining_room.add_edge("d4", "d3")
+    dining_room.add_edge("d3", "d5")
+    dining_room.add_edge("d5", "d1")
 
 
 
@@ -484,18 +516,32 @@ def handle_mouse_click(position):
         pass  # Implement specific logic here
 
 def handle_key_press(key):
+    """Handles key press events, such as starting navigation or other commands."""
     if key == pygame.K_RETURN:
-        pass  
+        # Example: Start navigation or execute a command
+        pass  # Implement specific logic for handling return key or others
 
-def execute_command_async(command):
-
+def execute_command_async(command, filename):
+    """
+    This function starts a new thread to execute a command asynchronously and logs the command.
+    
+    Args:
+    command (str): The command to be executed.
+    filename (str): Filename where to log the initial locations and command.
+    """
     def thread_target():
-
-        global user, robot_agent
-        if command.strip():  
-            response = user.initiate_chat(robot_agent, message=command)
-
-
+        try:
+            # Ensure 'user' and 'robot_agent' are accessible globally
+            global user, robot_agent
+            if command.strip():  # Check if command is not empty
+                response = user.initiate_chat(robot_agent, message=command)
+                # Log the command and initial locations
+                with open(filename, 'a') as f:
+                    f.write(f"Command: {command}\nResponse: {response}\n")
+        except Exception as e:
+            print(f"Error executing command: {e}")
+    
+    # Only start a thread if there is a command to execute
     if command.strip():
         command_thread = threading.Thread(target=thread_target)
         command_thread.start()
@@ -616,11 +662,13 @@ def get_item_location(item_id):
     """Global function to get the location of an item."""
     global item_manager
     return item_manager.get_item_location(item_id)
-
+def get_all_items_robot():
+    """Global function to access all items and their locations from the item manager."""
+    return item_manager.get_all_items()
 
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
-    global me  
+    global me  # Assuming 'user' is globally accessible
     return me.node_id
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
     node_item_counts = {}  # Track the number of items per node
@@ -691,7 +739,23 @@ def randomize_entities(graph, items, num_blocked):
 
     # Return the assigned nodes
     return robot_node, user_node, item_nodes, blocked_nodes
+def save_initial_locations_to_file(robot_node, user_node, item_nodes, blocked_nodes, filename="initial_locations.txt"):
+    with open(filename, "w") as file:
+        # Write robot's initial location
+        file.write(f"Robot initial node: {robot_node}\n")
 
+        # Write user's initial location
+        file.write(f"User initial node: {user_node}\n")
+
+        # Write items' initial locations
+        file.write("Items initial nodes:\n")
+        for item_id, node_id in item_nodes.items():
+            file.write(f"  - {item_id}: {node_id}\n")
+
+        # Write blocked nodes
+        file.write("Blocked nodes:\n")
+        for i, node_id in enumerate(blocked_nodes, start=1):
+            file.write(f"  - {i}: {node_id}\n")
 # AutoGen configuration
 config_list = [
     {
@@ -846,6 +910,7 @@ MAX_MESSAGES = 5  # Maximum number of messages to display
 conversation_log = []  # Holds the most recent conversation lines
 
 setup_simulation()
+create_rooms_and_graph()
 # Pygame window, colors, and fonts initialization
 SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -863,9 +928,11 @@ items = {
     'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\comb.png', target_size=(35, 35)),
     'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\toothpaste-removebg-preview.png', target_size=(40, 40)),
     'sunglasses': Item('sunglasses', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\sunglasses-transparent-1154941523414d2tkr4yn-removebg-preview.png', target_size=(25, 25)),
+    'burger': Item('burger', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\burger-removebg-preview.png', target_size=(40, 40)),
+    'broom': Item('broom', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\broom-removebg-preview.png', target_size=(40, 40)),
 
 }
-num_blocked_nodes = 3
+num_blocked_nodes = 4
 
 # Randomize nodes for all entities and blocked nodes
 robot_node, user_node, item_nodes, blocked_nodes = randomize_entities(graph, items, num_blocked_nodes)
@@ -887,7 +954,7 @@ for item_id, node_id in item_nodes.items():
 # Set the blocked node in the graph
 graph.blocked_nodes = blocked_nodes
 running = True
-active = False  
+active = False  # For text input box state
 logger.log("Initial Locations:")
 logger.log(f"Robot initial node: {robot_node}")
 logger.log(f"User initial node: {user_node}")
@@ -911,9 +978,8 @@ second_random_index = random.randint(0, len(item_ids) - 1)
 second_random_item = item_ids[second_random_index]
 
 # Prepare the command text with the first random item
-text = f"Bring {first_random_item} to me"
+text = f"Bring {first_random_item} to me then {second_random_item}"
 logger.log(f"Task: {text}")
-
 # Input box setup for command input
 input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
 color_inactive = pygame.Color('lightskyblue3')
@@ -931,17 +997,19 @@ while running:
             else:
                 active = False
             color = color_active if active else color_inactive
+        # Inside your event handling loop
         elif event.type == pygame.KEYDOWN:
             if active:
-                if event.key == pygame.K_RETURN:
-                    if text.strip():  # Check if 'text' contains more than just whitespace
-                        execute_command_async(text)
-                        text = ''  # Clear the text input after executing the command
-                    active = False  # Deactivate the input box after executing a command
+                if event.key == pygame.K_RETURN and text.strip():
+                    # Call the asynchronous execution function
+                    execute_command_async(text, "initial_locations.txt")
+                    text = ''  # Clear the text input after executing the command
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
+                    text = text[:-1]  # Handle backspace
                 else:
-                    text += event.unicode
+                    text += event.unicode  # Append typed character to the text
+
+    # Fill the screen with white
     screen.fill(BLACK)
     draw_nodes(graph, robot)  
     draw_edges(graph, screen)
@@ -950,10 +1018,19 @@ while running:
     draw_room(guest_room)
     draw_room(gym)  
     draw_room(living_room)  
+    draw_room(kitchen)
+    draw_room(dining_room)
     draw_room(study_room)
     draw_user_on_map(screen, me, graph)
+
     draw_item_on_map(screen, robot, item_manager, items, graph, me)
     draw_robot(robot, screen)  
+   
+    # Optional: draw planned path or highlight decision points here
+    # Draw the conversation
+
+    # draw_conversation(screen, font, conversation_log)
+    # Draw the dashboard and input box
     draw_dashboard()  
     txt_surface = font.render(text, True, color)
     width = max(200, txt_surface.get_width() + 10)

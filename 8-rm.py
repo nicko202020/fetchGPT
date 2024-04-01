@@ -290,112 +290,109 @@ def create_rooms_and_graph():
     library.add_node("li2", (310, 290))
     library.add_node("li3", (110, 490))
     library.add_node("li4", (310, 490))
-    library.add_node("li5", (310, 390))
+    library.add_node("li6", (310, 390))
     library.add_edge("li1", "li2")
-    library.add_edge("li2", "li5")
-    library.add_edge("li5", "li4")
+    library.add_edge("li2", "li6")
+    library.add_edge("li6", "li4")
     library.add_edge("li4", "li3")
     library.add_edge("li3", "li1")
-    graph.add_edge("li4", "of2") 
-
-    graph.add_edge("gr6", "li5")  
-
+ 
     office = Room("office", 60, 540, 360, 840, graph)  # New room adjacent to the gym on the left
     office.add_node("of1", (110, 590))
     office.add_node("of2", (310, 590))
     office.add_node("of3", (110, 790))
     office.add_node("of4", (310, 790))
-    office.add_node("of5", (310, 690))
+    office.add_node("of6", (310, 690))
     office.add_edge("of1", "of2")
-    office.add_edge("of2", "of5")
-    office.add_edge("of5", "of4")
+    office.add_edge("of2", "of6")
+    office.add_edge("of6", "of4")
     office.add_edge("of4", "of3")
     office.add_edge("of3", "of1")
-    graph.add_edge("of5", "gy6")  
 
-    guest_room = Room("guest room", 360, 240, 660, 540, graph)  # New room on the left of living room
-    guest_room.add_node("gr1", (410, 290))  # Similar placement as lr1 but shifted left
-    guest_room.add_node("gr2", (610, 290))  # Aligned horizontally with lr2
-    guest_room.add_node("gr3", (410, 490))  # Aligned vertically with lr3
-    guest_room.add_node("gr4", (610, 490))  # Similar to lr4 position
-    guest_room.add_node("gr5", (610, 390))  # Similar to lr4 position
-    guest_room.add_node("gr6", (410, 390))  # Similar to lr4 position
+    graph.add_edge("li4", "of2") 
+    graph.add_edge("gr5", "li6") 
+    graph.add_edge("of6", "gy5")  
+
+
+    guest_room = Room("guest room", 360, 240, 660, 540, graph)  
+    guest_room.add_node("gr1", (410, 290))  
+    guest_room.add_node("gr2", (610, 290))  
+    guest_room.add_node("gr3", (410, 490))  
+    guest_room.add_node("gr4", (610, 490))  
+    guest_room.add_node("gr5", (410, 390))  
+    guest_room.add_node("gr6", (610, 390))
     guest_room.add_edge("gr1", "gr2")
-    guest_room.add_edge("gr2", "gr5")
-    guest_room.add_edge("gr5", "gr4")
+    guest_room.add_edge("gr2", "gr6")
+    guest_room.add_edge("gr6", "gr4")
     guest_room.add_edge("gr3", "gr4")
-    guest_room.add_edge("gr3", "gr6")
-    guest_room.add_edge("gr1", "gr6")
-    
+    guest_room.add_edge("gr3", "gr5")
+    guest_room.add_edge("gr1", "gr5")
+
+    gym = Room("gym", 360, 540, 660, 840, graph)   
+    gym.add_node("gy1", (410, 590))
+    gym.add_node("gy2", (610, 590)) 
+    gym.add_node("gy3", (410, 790)) 
+    gym.add_node("gy4", (610, 790))  
+    gym.add_node("gy5", (410, 690))  
+    gym.add_node("gy6", (610, 690))  
+    gym.add_edge("gy1", "gy2")
+    gym.add_edge("gy2", "gy6")
+    gym.add_edge("gy6", "gy4")
+    gym.add_edge("gy3", "gy4")
+    gym.add_edge("gy3", "gy5")
+    gym.add_edge("gy1", "gy5")
 
     graph.add_edge("gr4", "gy2")  
+    graph.add_edge("lr5", "gr6")  
+    graph.add_edge("gy6", "s5")  
 
-    graph.add_edge("lr6", "gr5")  
-    gym = Room("gym", 360, 540, 660, 840, graph)   
-    gym.add_node("gy1", (410, 590))  # Similar placement as s1 but shifted left
-    gym.add_node("gy2", (610, 590))  # Aligned horizontally with s2
-    gym.add_node("gy3", (410, 790))  # Aligned vertically with s3
-    gym.add_node("gy4", (610, 790))  # Similar to s4 positio
-    gym.add_node("gy5", (610, 690))  # Similar to s4 position
-    gym.add_node("gy6", (410, 690))  # Similar to s4 position
-    gym.add_edge("gy1", "gy2")
-    gym.add_edge("gy2", "gy5")
-    gym.add_edge("gy5", "gy4")
-    gym.add_edge("gy3", "gy4")
-    gym.add_edge("gy3", "gy6")
-    gym.add_edge("gy1", "gy6")
-    graph.add_edge("gy5", "s6")  
-    
-    living_room = Room("living room", 660, 240, 960, 540, graph)  # Left-top room
-    living_room.add_node("lr1", (710, 290))  # Adjusted from (150, 150)
-    living_room.add_node("lr2", (910, 290))  # Adjusted from (350, 150)
-    living_room.add_node("lr3", (710, 490))  # Adjusted from (150, 350)
-    living_room.add_node("lr4", (910, 490))  # Adjusted from (350, 350)
-    living_room.add_node("lr5", (910, 390))  # Node near the boundary towards the Kitchen
-    living_room.add_node("lr6", (710, 390))  # Node near the boundary towards the Kitchen
+
+    living_room = Room("living room", 660, 240, 960, 540, graph)  
+    living_room.add_node("lr1", (710, 290))  
+    living_room.add_node("lr2", (910, 290)) 
+    living_room.add_node("lr3", (710, 490))  
+    living_room.add_node("lr4", (910, 490)) 
+    living_room.add_node("lr5", (710, 390))  
+    living_room.add_node("lr6", (910, 390))  
     living_room.add_edge("lr1", "lr2")
-    living_room.add_edge("lr3", "lr6")
-    living_room.add_edge("lr2", "lr5")
-    living_room.add_edge("lr5", "lr4")
+    living_room.add_edge("lr2", "lr6")
+    living_room.add_edge("lr6", "lr4")
     living_room.add_edge("lr3", "lr4")
-    living_room.add_edge("lr6", "lr1")
-    graph.add_edge("lr5", "k5")
-    graph.add_edge("lr4", "s2")
-    
-    study_room = Room("study room", 660, 540, 960, 840, graph)    # Left-bottom room
-    
-        # # Update nodes within Study Room (Left-Bottom)
-    study_room.add_node("s1", (710, 590))  # Adjusted from (150, 450)
-    study_room.add_node("s2", (910, 590))  # Adjusted from (350, 450)
-    study_room.add_node("s3", (710, 790))  # Adjusted from (150, 650)
-    study_room.add_node("s4", (910, 790))  # Adjusted from (350, 650)
-    study_room.add_node("s5", (910, 690))  # Node near the boundary towards the Living Room
-    study_room.add_node("s6", (710, 690))  # Node near the boundary towards the Living Room
+    living_room.add_edge("lr3", "lr5")
+    living_room.add_edge("lr5", "lr1")
+
+    study_room = Room("study room", 660, 540, 960, 840, graph)    
+    study_room.add_node("s1", (710, 790))  
+    study_room.add_node("s2", (910, 790))  
+    study_room.add_node("s3", (710, 590))  
+    study_room.add_node("s4", (910, 590))  
+    study_room.add_node("s5", (710, 690)) 
+    study_room.add_node("s6", (910, 690)) 
     study_room.add_edge("s1", "s2")
-    study_room.add_edge("s2", "s5")
-    study_room.add_edge("s5", "s4")
+    study_room.add_edge("s2", "s6")
+    study_room.add_edge("s6", "s4")
     study_room.add_edge("s4", "s3")
-    study_room.add_edge("s3", "s6")
-    study_room.add_edge("s1", "s6")
+    study_room.add_edge("s3", "s5")
+    study_room.add_edge("s1", "s5")
+    
+    graph.add_edge("lr4", "s2")
+    graph.add_edge("lr6", "k5")
+    graph.add_edge("d5", "s6")
 
-    graph.add_edge("d5", "s5")
 
-
-
-    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)         # Right-top room
-    kitchen.add_node("k1", (1010, 290))  # Adjusted from (450, 150)
-    kitchen.add_node("k2", (1210, 290))  # Adjusted from (650, 150)
-    kitchen.add_node("k3", (1010, 490))  # Adjusted from (450, 350)
-    kitchen.add_node("k4", (1210, 490))  # Adjusted from (650, 350)
-    kitchen.add_node("k5", (1010, 390))  # Node near the boundary towards the Living Room
-    kitchen.add_node("k6", (1210, 390))  # Node near the boundary towards the Living Room
+    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)       
+    kitchen.add_node("k1", (1010, 290))  
+    kitchen.add_node("k2", (1210, 290))  
+    kitchen.add_node("k3", (1010, 490))  
+    kitchen.add_node("k4", (1210, 490))  
+    kitchen.add_node("k5", (1010, 390))  
+    kitchen.add_node("k6", (1210, 390)) 
     kitchen.add_edge("k1", "k5")
     kitchen.add_edge("k5", "k3")
     kitchen.add_edge("k3", "k4")
     kitchen.add_edge("k4", "k6")
     kitchen.add_edge("k6", "k2")
     kitchen.add_edge("k1", "k2")
-    graph.add_edge("k4", "d2")
 
     
     dining_room = Room("dining room", 960, 540, 1260, 840, graph) # Right-bottom room
@@ -518,32 +515,18 @@ def handle_mouse_click(position):
         pass  # Implement specific logic here
 
 def handle_key_press(key):
-    """Handles key press events, such as starting navigation or other commands."""
     if key == pygame.K_RETURN:
-        # Example: Start navigation or execute a command
-        pass  # Implement specific logic for handling return key or others
+        pass  
 
-def execute_command_async(command, filename):
-    """
-    This function starts a new thread to execute a command asynchronously and logs the command.
-    
-    Args:
-    command (str): The command to be executed.
-    filename (str): Filename where to log the initial locations and command.
-    """
+def execute_command_async(command):
+
     def thread_target():
-        try:
-            # Ensure 'user' and 'robot_agent' are accessible globally
-            global user, robot_agent
-            if command.strip():  # Check if command is not empty
-                response = user.initiate_chat(robot_agent, message=command)
-                # Log the command and initial locations
-                with open(filename, 'a') as f:
-                    f.write(f"Command: {command}\nResponse: {response}\n")
-        except Exception as e:
-            print(f"Error executing command: {e}")
-    
-    # Only start a thread if there is a command to execute
+
+        global user, robot_agent
+        if command.strip():  
+            response = user.initiate_chat(robot_agent, message=command)
+
+
     if command.strip():
         command_thread = threading.Thread(target=thread_target)
         command_thread.start()
@@ -664,13 +647,11 @@ def get_item_location(item_id):
     """Global function to get the location of an item."""
     global item_manager
     return item_manager.get_item_location(item_id)
-def get_all_items_robot():
-    """Global function to access all items and their locations from the item manager."""
-    return item_manager.get_all_items()
+
 
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
-    global me  # Assuming 'user' is globally accessible
+    global me  
     return me.node_id
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
     node_item_counts = {}  # Track the number of items per node
@@ -741,23 +722,7 @@ def randomize_entities(graph, items, num_blocked):
 
     # Return the assigned nodes
     return robot_node, user_node, item_nodes, blocked_nodes
-def save_initial_locations_to_file(robot_node, user_node, item_nodes, blocked_nodes, filename="initial_locations.txt"):
-    with open(filename, "w") as file:
-        # Write robot's initial location
-        file.write(f"Robot initial node: {robot_node}\n")
 
-        # Write user's initial location
-        file.write(f"User initial node: {user_node}\n")
-
-        # Write items' initial locations
-        file.write("Items initial nodes:\n")
-        for item_id, node_id in item_nodes.items():
-            file.write(f"  - {item_id}: {node_id}\n")
-
-        # Write blocked nodes
-        file.write("Blocked nodes:\n")
-        for i, node_id in enumerate(blocked_nodes, start=1):
-            file.write(f"  - {i}: {node_id}\n")
 # AutoGen configuration
 config_list = [
     {
@@ -912,7 +877,6 @@ MAX_MESSAGES = 5  # Maximum number of messages to display
 conversation_log = []  # Holds the most recent conversation lines
 
 setup_simulation()
-create_rooms_and_graph()
 # Pygame window, colors, and fonts initialization
 SCREEN_WIDTH, SCREEN_HEIGHT, DASHBOARD_HEIGHT = 1920, 1080, 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -956,7 +920,7 @@ for item_id, node_id in item_nodes.items():
 # Set the blocked node in the graph
 graph.blocked_nodes = blocked_nodes
 running = True
-active = False  # For text input box state
+active = False  
 logger.log("Initial Locations:")
 logger.log(f"Robot initial node: {robot_node}")
 logger.log(f"User initial node: {user_node}")
@@ -982,6 +946,7 @@ second_random_item = item_ids[second_random_index]
 # Prepare the command text with the first random item
 text = f"Bring {first_random_item} to me"
 logger.log(f"Task: {text}")
+
 # Input box setup for command input
 input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
 color_inactive = pygame.Color('lightskyblue3')
@@ -999,19 +964,17 @@ while running:
             else:
                 active = False
             color = color_active if active else color_inactive
-        # Inside your event handling loop
         elif event.type == pygame.KEYDOWN:
             if active:
-                if event.key == pygame.K_RETURN and text.strip():
-                    # Call the asynchronous execution function
-                    execute_command_async(text, "initial_locations.txt")
-                    text = ''  # Clear the text input after executing the command
+                if event.key == pygame.K_RETURN:
+                    if text.strip():  # Check if 'text' contains more than just whitespace
+                        execute_command_async(text)
+                        text = ''  # Clear the text input after executing the command
+                    active = False  # Deactivate the input box after executing a command
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]  # Handle backspace
+                    text = text[:-1]
                 else:
-                    text += event.unicode  # Append typed character to the text
-
-    # Fill the screen with white
+                    text += event.unicode
     screen.fill(BLACK)
     draw_nodes(graph, robot)  
     draw_edges(graph, screen)
@@ -1024,15 +987,8 @@ while running:
     draw_room(dining_room)
     draw_room(study_room)
     draw_user_on_map(screen, me, graph)
-
     draw_item_on_map(screen, robot, item_manager, items, graph, me)
     draw_robot(robot, screen)  
-   
-    # Optional: draw planned path or highlight decision points here
-    # Draw the conversation
-
-    # draw_conversation(screen, font, conversation_log)
-    # Draw the dashboard and input box
     draw_dashboard()  
     txt_surface = font.render(text, True, color)
     width = max(200, txt_surface.get_width() + 10)

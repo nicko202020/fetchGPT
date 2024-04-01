@@ -310,76 +310,6 @@ def create_rooms_and_graph():
     office.add_edge("of3", "of1")
 
     graph.add_edge("li4", "of2") 
-    graph.add_edge("gr5", "li6") 
-    graph.add_edge("of6", "gy5")  
-
-
-    guest_room = Room("guest room", 360, 240, 660, 540, graph)  
-    guest_room.add_node("gr1", (410, 290))  
-    guest_room.add_node("gr2", (610, 290))  
-    guest_room.add_node("gr3", (410, 490))  
-    guest_room.add_node("gr4", (610, 490))  
-    guest_room.add_node("gr5", (410, 390))  
-    guest_room.add_node("gr6", (610, 390))
-    guest_room.add_edge("gr1", "gr2")
-    guest_room.add_edge("gr2", "gr6")
-    guest_room.add_edge("gr6", "gr4")
-    guest_room.add_edge("gr3", "gr4")
-    guest_room.add_edge("gr3", "gr5")
-    guest_room.add_edge("gr1", "gr5")
-
-    gym = Room("gym", 360, 540, 660, 840, graph)   
-    gym.add_node("gy1", (410, 590))
-    gym.add_node("gy2", (610, 590)) 
-    gym.add_node("gy3", (410, 790)) 
-    gym.add_node("gy4", (610, 790))  
-    gym.add_node("gy5", (410, 690))  
-    gym.add_node("gy6", (610, 690))  
-    gym.add_edge("gy1", "gy2")
-    gym.add_edge("gy2", "gy6")
-    gym.add_edge("gy6", "gy4")
-    gym.add_edge("gy3", "gy4")
-    gym.add_edge("gy3", "gy5")
-    gym.add_edge("gy1", "gy5")
-
-    graph.add_edge("gr4", "gy2")  
-    graph.add_edge("lr5", "gr6")  
-    graph.add_edge("gy6", "s5")  
-
-
-    living_room = Room("living room", 660, 240, 960, 540, graph)  
-    living_room.add_node("lr1", (710, 290))  
-    living_room.add_node("lr2", (910, 290)) 
-    living_room.add_node("lr3", (710, 490))  
-    living_room.add_node("lr4", (910, 490)) 
-    living_room.add_node("lr5", (710, 390))  
-    living_room.add_edge("lr1", "lr2")
-    living_room.add_edge("lr2", "lr4")
-    living_room.add_edge("lr3", "lr4")
-    living_room.add_edge("lr3", "lr5")
-    living_room.add_edge("lr5", "lr1")
-
-    study_room = Room("study room", 660, 540, 960, 840, graph)    
-    study_room.add_node("s1", (710, 790))  
-    study_room.add_node("s2", (910, 790))  
-    study_room.add_node("s3", (710, 590))  
-    study_room.add_node("s4", (910, 590))  
-    study_room.add_node("s5", (710, 690)) 
-
-    study_room.add_edge("s1", "s2")
-    study_room.add_edge("s2", "s4")
-    study_room.add_edge("s4", "s3")
-    study_room.add_edge("s3", "s5")
-    study_room.add_edge("s1", "s5")
-    
-    graph.add_edge("lr4", "s2")
-
-
-
-  
-
-
-
 
 def initialize_robot(start_node="lr1"):
     """Initializes the robot at a given start node."""
@@ -859,13 +789,8 @@ item_manager = ItemLocationManager()
 items = {
     'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\3105807.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\banana-removebg-preview.png', target_size=(25, 25)),
-    'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\6924330.png', target_size=(35, 35)),
-    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\comb.png', target_size=(35, 35)),
-    'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\toothpaste-removebg-preview.png', target_size=(40, 40)),
-    'sunglasses': Item('sunglasses', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\sunglasses-transparent-1154941523414d2tkr4yn-removebg-preview.png', target_size=(25, 25)),
-
 }
-num_blocked_nodes = 3
+num_blocked_nodes = 1
 
 # Randomize nodes for all entities and blocked nodes
 robot_node, user_node, item_nodes, blocked_nodes = randomize_entities(graph, items, num_blocked_nodes)
@@ -911,7 +836,7 @@ second_random_index = random.randint(0, len(item_ids) - 1)
 second_random_item = item_ids[second_random_index]
 
 # Prepare the command text with the first random item
-text = f"Bring {first_random_item} to me"
+text = f"Bring {first_random_item} to me then {second_random_item}"
 logger.log(f"Task: {text}")
 
 # Input box setup for command input

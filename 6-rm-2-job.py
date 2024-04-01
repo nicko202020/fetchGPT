@@ -911,7 +911,7 @@ second_random_index = random.randint(0, len(item_ids) - 1)
 second_random_item = item_ids[second_random_index]
 
 # Prepare the command text with the first random item
-text = f"Bring {first_random_item} to me"
+text = f"Bring {first_random_item} to me then {second_random_item}"
 logger.log(f"Task: {text}")
 
 # Input box setup for command input
