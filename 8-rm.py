@@ -474,16 +474,9 @@ def draw_user_on_map(screen, user, graph):
 
 
 def draw_dashboard():
-    global robot, font, SCREEN_HEIGHT, graph, me,start_conditions, command_message # Ensure all necessary globals are referenced
+    global robot, font, SCREEN_HEIGHT, graph, me  # Ensure all necessary globals are referenced
     """Draws the dashboard area with information about the robot's status."""
     pygame.draw.rect(screen, (0, 0, 0), [0, SCREEN_HEIGHT - DASHBOARD_HEIGHT, SCREEN_WIDTH, DASHBOARD_HEIGHT])
-    # Render and display the starting conditions
-    conditions_text = font.render(start_conditions, True, (255, 255, 255))
-    screen.blit(conditions_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
-
-    # Render and display the command message
-    command_text = font.render(f"Command: {command_message}", True, (255, 255, 255))
-    screen.blit(command_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 40))  # Adjust the y position to avoid overlap
     current_room_text = font.render(f"Current Room: {get_current_robot_room()}", True, (255, 255, 255))
     current_position_text = font.render(f"Position: {get_current_robot_position()}", True, (255, 255, 255))
     screen.blit(current_room_text, (10, SCREEN_HEIGHT - DASHBOARD_HEIGHT + 10))
@@ -493,12 +486,6 @@ def draw_dashboard():
     start_x = 3 * SCREEN_WIDTH // 4
     line_height = 30
     y_offset = 10
-
-    # Displaying the blocked nodes
-    for i, blocked_node in enumerate(graph.blocked_nodes, start=1):
-        blocked_node_text = font.render(f"Blocked Node {i}: {blocked_node}", True, WHITE)
-        screen.blit(blocked_node_text, (start_x, SCREEN_HEIGHT - DASHBOARD_HEIGHT + y_offset))
-        y_offset += line_height
 
     # Displaying the user's location
     user_node_text = font.render(f"User Node: {me.node_id}", True, WHITE)
@@ -527,41 +514,30 @@ def handle_key_press(key):
         # Example: Start navigation or execute a command
         pass  # Implement specific logic for handling return key or others
 
-def handle_text_input(events):
-    """Processes text input events for command execution."""
-    global text  # Assume 'text' stores the current input string
-    for event in events:
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RETURN:
-                execute_command(text)
-                text = ''  # Reset text input after executing the command
-            elif event.key == pygame.K_BACKSPACE:
-                text = text[:-1]  # Remove last character
-            else:
-                text += event.unicode  # Add character to text input
-
-def execute_command_async(command):
+def execute_command_async(command, filename):
     """
-    This function starts a new thread to execute a command asynchronously.
+    This function starts a new thread to execute a command asynchronously and logs the command.
     
     Args:
     command (str): The command to be executed.
+    filename (str): Filename where to log the initial locations and command.
     """
     def thread_target():
         try:
-            # Assuming 'user' and 'robot_agent' are accessible globally
+            # Ensure 'user' and 'robot_agent' are accessible globally
             global user, robot_agent
-            user.initiate_chat(robot_agent, message=command)
+            if command.strip():  # Check if command is not empty
+                response = user.initiate_chat(robot_agent, message=command)
+                # Log the command and initial locations
+                with open(filename, 'a') as f:
+                    f.write(f"Command: {command}\nResponse: {response}\n")
         except Exception as e:
             print(f"Error executing command: {e}")
     
-    command_thread = threading.Thread(target=thread_target)
-    command_thread.start()
-def log_message(message):
-    global conversation_log
-    conversation_log.append(message)
-    if len(conversation_log) > MAX_MESSAGES:
-        conversation_log.pop(0)  # Remove the oldest message
+    # Only start a thread if there is a command to execute
+    if command.strip():
+        command_thread = threading.Thread(target=thread_target)
+        command_thread.start()
 def draw_conversation(screen, font, conversation_log):
     start_y = 20  # Starting Y position to draw from
     line_height = 20  # Vertical space between lines
@@ -674,51 +650,45 @@ def get_item_location(item_id):
 def get_all_items_robot():
     """Global function to access all items and their locations from the item manager."""
     return item_manager.get_all_items()
-def get_room_nodes(room_name):
-    """Retrieves nodes within a specified room."""
-    global graph  # Ensure the 'graph' instance is globally accessible.
-    
-    if room_name in graph.nodes:
-        return list(graph.nodes[room_name].keys())
-    else:
-        return "Room not found"
+
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
     global me  # Assuming 'user' is globally accessible
     return me.node_id
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
+    node_item_counts = {}  # Track how many items are at each node
+
     for item_id, node_id in item_manager.get_all_items().items():
         item = items.get(item_id)
 
+        # Initialize count if node is encountered the first time
+        if node_id not in node_item_counts:
+            node_item_counts[node_id] = 0
+
         if robot.held_item and robot.held_item.item_id == item_id:
-            # Center the item on the robot's position
             robot_position = (robot.x, robot.y - item.image.get_height() // 2)
             item.draw(screen, robot_position, is_held=True)
         else:
             node_position = graph.get_node_coordinates(node_id)
-            connected_nodes = graph.edges[node_id].keys()
+            
+            # Calculate the offset based on how many items are already at this node
+            offset_x = 20 * node_item_counts[node_id]
+            item_x = node_position[0] + offset_x
 
-            # Logic to determine item and user positioning
-            # This logic assumes horizontal arrangement; adjust if your graph is more complex
-            offset_x = 30
-            item_x = node_position[0]
-            user_x = node_position[0]
-
-            # Check if the user is at the same node and decide on positions
             if user and user.node_id == node_id:
-                # User is present at the node; decide where to place user and item
-                # This simple logic places the user to the left and the item to the right
-                user_x -= offset_x
-                item_x += offset_x
+                # Adjust user and item positions based on user's presence
+                user_x = node_position[0] - offset_x
+                user_position = (user_x, node_position[1])
+                item_position = (item_x, node_position[1] - item.image.get_height() // 2)
             else:
-                # No user at the node; item can be placed directly at the node
-                item_x += offset_x  # Default placement to the right for simplicity
+                # Item positioning without a user at the node
+                item_position = (item_x, node_position[1] - item.image.get_height() // 2)
 
-            user_position = (user_x, node_position[1])
-            item_position = (item_x, node_position[1] - item.image.get_height() // 2)
-
-            # Draw item based on calculated position
+            # Draw the item
             item.draw(screen, item_position, is_held=False)
+            
+            # Increment the item count for this node
+            node_item_counts[node_id] += 1
 
 def randomize_entities(graph, items, num_blocked):
     all_nodes = list(graph.get_all_nodes())
@@ -726,32 +696,49 @@ def randomize_entities(graph, items, num_blocked):
     # Initialize the list for blocked nodes
     blocked_nodes = []
 
-    # Assign blocked nodes with reshuffling before each assignment
-    for _ in range(num_blocked):
-        random.shuffle(all_nodes)
-        blocked_node = all_nodes.pop()
+    # Assign blocked nodes using random integers
+    while len(blocked_nodes) < num_blocked:
+        index = random.randint(0, len(all_nodes) - 1)
+        blocked_node = all_nodes.pop(index)
         blocked_nodes.append(blocked_node)
 
-    # After assigning blocked nodes, filter and shuffle for other entities
+    # Filter out nodes ending with '5' or '6' for other entities
     eligible_nodes = [node for node in all_nodes if not node.endswith('5') and not node.endswith('6')]
 
-    # Assign the robot node
-    random.shuffle(eligible_nodes)
-    robot_node = eligible_nodes.pop()
+    # Assign the robot node using a random integer
+    robot_index = random.randint(0, len(eligible_nodes) - 1)
+    robot_node = eligible_nodes.pop(robot_index)
 
-    # Assign the user node
-    random.shuffle(eligible_nodes)
-    user_node = eligible_nodes.pop()
+    # Assign the user node using a random integer
+    user_index = random.randint(0, len(eligible_nodes) - 1)
+    user_node = eligible_nodes.pop(user_index)
 
-    # Assign item nodes
+    # Assign item nodes using random integers
     item_nodes = {}
     for item_id in items.keys():
-        random.shuffle(eligible_nodes)
-        item_nodes[item_id] = eligible_nodes.pop()
+        item_index = random.randint(0, len(eligible_nodes) - 1)
+        item_node = eligible_nodes.pop(item_index)
+        item_nodes[item_id] = item_node
 
     # Return the assigned nodes
     return robot_node, user_node, item_nodes, blocked_nodes
+def save_initial_locations_to_file(robot_node, user_node, item_nodes, blocked_nodes, filename="initial_locations.txt"):
+    with open(filename, "w") as file:
+        # Write robot's initial location
+        file.write(f"Robot initial node: {robot_node}\n")
 
+        # Write user's initial location
+        file.write(f"User initial node: {user_node}\n")
+
+        # Write items' initial locations
+        file.write("Items initial nodes:\n")
+        for item_id, node_id in item_nodes.items():
+            file.write(f"  - {item_id}: {node_id}\n")
+
+        # Write blocked nodes
+        file.write("Blocked nodes:\n")
+        for i, node_id in enumerate(blocked_nodes, start=1):
+            file.write(f"  - {i}: {node_id}\n")
 # AutoGen configuration
 config_list = [
     {
@@ -774,17 +761,6 @@ llm_config = {
                 "required": ["next_node"]
             }
         },
-        # {
-        #     "name": "get_room_nodes",
-        #     "description": "Retrieves all node identifiers within a specified room, aiding in navigation and planning.",
-        #     "parameters": {
-        #         "type": "object",
-        #         "properties": {
-        #             "room_name": {"type": "string", "description": "The name of the room for which node identifiers are requested."}
-        #         },
-        #         "required": ["room_name"]
-        #     }
-        # },
         {
             "name": "get_current_position",
             "description": "Returns the robot's current node, providing a reference point for navigation decisions.",
@@ -886,7 +862,7 @@ Inputs:
 Task:
 -Decision-Making: Determine the sequence of actions required to complete the delivery tasks, adapting to any new obstacles.
 -Path Planning: Generate optimal paths to move between nodes, retrieve items, and deliver them to the user.
--Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes.
+-Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes. If node is blocked, remember the node you tried to move from to use to find an alternative path
 
 Output:
 -Plan Action Sequence: The series of steps you plan to execute.
@@ -903,7 +879,6 @@ user.register_function(
     function_map={
         "move_robot": move_robot,
         "get_current_position": get_current_position,
-        # "get_room_nodes": get_room_nodes,
         "get_path": get_path,
         "get_alternative_path": get_alternative_path,  
         "pick_up_item_robot": pick_up_item_robot,
@@ -931,9 +906,9 @@ me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
 item_manager = ItemLocationManager()
 items = {
     'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\banana.png', target_size=(25, 25)),
     'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\6924330.png', target_size=(25, 25)),
-    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\comb.jpg', target_size=(35, 35)),
+    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\comb.png', target_size=(35, 35)),
     'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\toothpaste.jpg', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
     'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
@@ -952,23 +927,36 @@ me = User(node_id=user_node, preferred_side='left', image_path=user_image_path)
 # Update item locations in the item manager
 for item_id, node_id in item_nodes.items():
     item_manager.update_item_location(item_id, node_id)
-
 # Set the blocked node in the graph
 graph.blocked_nodes = blocked_nodes
 running = True
 active = False  # For text input box state
-text = ''  # For storing input text
+To get a second random item that is not a duplicate of the first one, you can ensure that the index you select the second time is different from the first one. Here's how you could modify your code to achieve this:
+
+python
+Copy code
+item_ids = list(items.keys())  # Assuming 'items' is your dictionary of items
+
+# Get the first random item
+first_random_index = random.randint(0, len(item_ids) - 1)
+first_random_item = item_ids[first_random_index]
+
+# Remove the first item from the list to avoid duplication
+item_ids.pop(first_random_index)
+
+# Get the second random item from the updated list
+second_random_index = random.randint(0, len(item_ids) - 1)
+second_random_item = item_ids[second_random_index]
+
+# Prepare the command text with the first random item
+text = f"Bring {first_random_item} to me"
 
 # Input box setup for command input
 input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
 color_inactive = pygame.Color('lightskyblue3')
 color_active = pygame.Color('dodgerblue2')
 color = color_inactive
-random_item = random.choice(list(items.keys()))
-randomitem_node = item_nodes[item_id]
-command_message = f"Bring {item_id} to me"
-response = user.initiate_chat(robot_agent, message=command_message)
-start_conditions = "Robot at {robot_node}, {item_id} at {item_node}, User at {user_node}"
+
 while running:
     events = pygame.event.get()
     for event in events:
@@ -983,9 +971,9 @@ while running:
         # Inside your event handling loop
         elif event.type == pygame.KEYDOWN:
             if active:
-                if event.key == pygame.K_RETURN:
+                if event.key == pygame.K_RETURN and text.strip():
                     # Call the asynchronous execution function
-                    execute_command_async(text)
+                    execute_command_async(text, "initial_locations.txt")
                     text = ''  # Clear the text input after executing the command
                 elif event.key == pygame.K_BACKSPACE:
                     text = text[:-1]  # Handle backspace
