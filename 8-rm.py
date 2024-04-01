@@ -931,10 +931,7 @@ for item_id, node_id in item_nodes.items():
 graph.blocked_nodes = blocked_nodes
 running = True
 active = False  # For text input box state
-To get a second random item that is not a duplicate of the first one, you can ensure that the index you select the second time is different from the first one. Here's how you could modify your code to achieve this:
 
-python
-Copy code
 item_ids = list(items.keys())  # Assuming 'items' is your dictionary of items
 
 # Get the first random item
