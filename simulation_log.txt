@@ -1,1 +1,57 @@
 Simulation Log
+Initial Locations:
+Robot initial node: gr3
+User initial node: d1
+Items initial nodes:
+  - water: gy4
+  - banana: of1
+  - toothbrush: of3
+  - comb: k1
+  - toothpaste: d3
+  - sunglasses: d2
+  - burger: lr1
+  - broom: s4
+Blocked nodes:
+  - Node 1: gy6
+  - Node 2: li2
+  - Node 3: k3
+  - Node 4: li1
+Task: Bring burger to me
+Retrieved location for item 'burger': lr1
+Current position retrieved: gr3
+get_path: Path from gr3 to lr1: ['gr3', 'gr4', 'gr5', 'lr6', 'lr1']
+Moved to node gr4.
+Moved to node gr5.
+Moved to node lr6.
+Moved to node lr1.
+Retrieved location for item 'burger': lr1
+Picked up item burger at lr1
+get_path: Path from lr1 to d1: ['lr1', 'lr2', 'lr5', 'lr4', 's2', 's5', 'd5', 'd1']
+Moved to node lr2.
+Moved to node lr5.
+Moved to node lr4.
+Moved to node s2.
+Moved to node s5.
+Moved to node d5.
+Moved to node d1.
+Dropped off item burger at d1
+Retrieved location for item 'sunglasses': d2
+get_path: Path from d1 to d2: ['d1', 'd2']
+Moved to node d2.
+Retrieved location for item 'sunglasses': d2
+Picked up item sunglasses at d2
+Moved to node d1.
+Dropped off item sunglasses at d1
+Retrieved location for item 'broom': s4
+Current position retrieved: d1
+get_path: Path from d1 to s4: ['d1', 'd5', 's5', 's4']
+Moved to node d5.
+Moved to node s5.
+Moved to node s4.
+Retrieved location for item 'broom': s4
+Picked up item broom at s4
+get_path: Path from s4 to d1: ['s4', 's5', 'd5', 'd1']
+Moved to node s5.
+Moved to node d5.
+Moved to node d1.
+Dropped off item broom at d1

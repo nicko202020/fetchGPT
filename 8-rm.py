@@ -54,7 +54,18 @@ class ItemLocationManager:
         if item_id in self.item_locations:
             del self.item_locations[item_id]
     def get_item_location(self, item_id):
-        return self.item_locations.get(item_id, None)
+
+        # Retrieve the item's location
+        location = self.item_locations.get(item_id, None)
+        
+        # Log the retrieval action
+        if robot.logger:
+            if location:
+                robot.logger.log(f"Retrieved location for item '{item_id}': {location}")
+            else:
+                robot.logger.log(f"Location for item '{item_id}' not found.")
+        
+        return location
     def get_all_items(self):
         """Returns a dictionary of all item IDs and their locations."""
         return self.item_locations
@@ -186,7 +197,7 @@ class Graph:
             self.edges[node2] = {}
         self.edges[node1][node2] = weight
         self.edges[node2][node1] = weight
-
+    
     def find_path(self, start, end):
         if start == end:
             return [start]
@@ -425,12 +436,10 @@ def update_robot_position(new_x, new_y):
     robot.y = new_y
     if robot.logger:
         robot.logger.log_info(f"Updated position to ({new_x}, {new_y})")
-
 def get_current_robot_position():
     """Returns the current position of the robot."""
     global robot
     return robot.current_position()
-
 def get_current_robot_room():
     """Returns the name of the room in which the robot currently is."""
     global robot
@@ -564,9 +573,10 @@ def move_robot(next_node):
     global robot  # Ensure global access to the robot instance
     return robot.move_to_node(next_node)
 def get_current_position():
-    """Get the current position of the robot."""
     global robot  # Assuming 'robot' is an instance of the Robot class
-    return robot.current_position()
+    position = robot.current_position()
+    logger.log(f"Current position retrieved: {position}")
+    return position
 
 def get_robot_current_room():
     """Get the name of the room where the robot currently is."""
@@ -575,17 +585,24 @@ def get_robot_current_room():
 
 def get_path(start_node, target_node):
     """Global function to find a path from the start node to the target node."""
-    global robot, graph
+    global graph  # Ensure 'graph' is accessible
     assert start_node in graph.get_all_nodes(), "Start must be a valid node identifier."
     assert target_node in graph.get_all_nodes(), "Target must be a valid node identifier."
 
+    # Pass the logger to the find_path method
     path = graph.find_path(start_node, target_node)
-    return path if path else "Path not found."
+
+    logger.log(f"get_path: Path from {start_node} to {target_node}: {path}")
+    return path
 def get_alternative_path(start_node, target_node, blocked_nodes):
     """Global function to find an alternative path avoiding certain nodes."""
-    global robot, graph
-    start_node = robot.current_node
-    return graph.find_path_avoiding_blocked_nodes(start_node, target_node, blocked_nodes)
+    global graph
+    # Ensure start_node is updated correctly, possibly from global state or passed directly
+    start_node = robot.current_node  # Assume global access to robot
+    # Pass the logger to the method
+    path = graph.find_path_avoiding_blocked_nodes(start_node, target_node, blocked_nodes)
+    logger.log(f"get_alternative_path: Alternative path from {start_node} to {target_node} avoiding {blocked_nodes}: {path}")
+    return path
 def get_node_info(room_name):
     """
     Retrieves information about the specified room, including its nodes and the connecting edges between those nodes.
@@ -656,7 +673,7 @@ def get_user_node():
     global me  # Assuming 'user' is globally accessible
     return me.node_id
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
-    node_item_counts = {}  # Track how many items are at each node
+    node_item_counts = {}  # Track the number of items per node
 
     for item_id, node_id in item_manager.get_all_items().items():
         item = items.get(item_id)
@@ -665,31 +682,33 @@ def draw_item_on_map(screen, robot, item_manager, items, graph, user):
         if node_id not in node_item_counts:
             node_item_counts[node_id] = 0
 
+        # Determine position based on whether the robot is holding the item
         if robot.held_item and robot.held_item.item_id == item_id:
             robot_position = (robot.x, robot.y - item.image.get_height() // 2)
             item.draw(screen, robot_position, is_held=True)
         else:
+            # Establish base position for items and users
             node_position = graph.get_node_coordinates(node_id)
-            
-            # Calculate the offset based on how many items are already at this node
-            offset_x = 20 * node_item_counts[node_id]
-            item_x = node_position[0] + offset_x
+            base_offset_x = 20  # Base horizontal offset
+            additional_offset_x = -10  # Additional offset for each subsequent item
 
+            # Calculate the horizontal position for this item
+            item_x = node_position[0] + base_offset_x + node_item_counts[node_id] * additional_offset_x
+            item_position = (item_x, node_position[1] + item.image.get_height() // 2)
+
+            # Check if the user is present at this node and adjust positions
             if user and user.node_id == node_id:
-                # Adjust user and item positions based on user's presence
-                user_x = node_position[0] - offset_x
-                user_position = (user_x, node_position[1])
-                item_position = (item_x, node_position[1] - item.image.get_height() // 2)
-            else:
-                # Item positioning without a user at the node
-                item_position = (item_x, node_position[1] - item.image.get_height() // 2)
+                user_x = node_position[0] - base_offset_x  # Position user to the left
+                user_position = (user_x, node_position[1])  # User's vertical position remains centered
+
+                # Adjust item's position if the user is present
+                item_position = (item_x + additional_offset_x, node_position[1] - item.image.get_height() // 2)
 
             # Draw the item
             item.draw(screen, item_position, is_held=False)
-            
+
             # Increment the item count for this node
             node_item_counts[node_id] += 1
-
 def randomize_entities(graph, items, num_blocked):
     all_nodes = list(graph.get_all_nodes())
 
@@ -905,24 +924,31 @@ me = User(node_id='li3', preferred_side='left', image_path=user_image_path)
 
 item_manager = ItemLocationManager()
 items = {
-    'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\3105807.png', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\banana.png', target_size=(25, 25)),
-    'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\6924330.png', target_size=(25, 25)),
-    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\comb.png', target_size=(35, 35)),
-    'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\toothpaste.jpg', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
-    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\current\robot-llm\png-clipart-banana-powder-fruit-cavendish-banana-banana-yellow-banana-fruit-food-image-file-formats-thumbnail.png', target_size=(25, 25)),
+    'water': Item('water', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\3105807.png', target_size=(25, 25)),
+    'banana': Item('banana', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\banana-removebg-preview.png', target_size=(25, 25)),
+    'toothbrush': Item('toothbrush', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\6924330.png', target_size=(35, 35)),
+    'comb': Item('comb', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\comb.png', target_size=(35, 35)),
+    'toothpaste': Item('toothpaste', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\toothpaste-removebg-preview.png', target_size=(40, 40)),
+    'sunglasses': Item('sunglasses', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\sunglasses-transparent-1154941523414d2tkr4yn-removebg-preview.png', target_size=(25, 25)),
+    'burger': Item('burger', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\burger-removebg-preview.png', target_size=(40, 40)),
+    'broom': Item('broom', r'C:\Users\oeini\OneDrive\Documents\GitHub\Current\robot-llm\IMAGES\removed\broom-removebg-preview.png', target_size=(40, 40)),
 
 }
 num_blocked_nodes = 4
 
 # Randomize nodes for all entities and blocked nodes
 robot_node, user_node, item_nodes, blocked_nodes = randomize_entities(graph, items, num_blocked_nodes)
+# Based on the user_node value, set the preferred side
+if user_node[-1] in ['1', '3']:
+    preferred_side = 'left'
+elif user_node[-1] in ['2', '4']:
+    preferred_side = 'right'
+else:
+    preferred_side = 'left'  # Default or based on additional logic
 
 # Update your entities with these nodes
 robot = Robot(robot_node, graph, robot_image_path, logger)
-me = User(node_id=user_node, preferred_side='left', image_path=user_image_path)
+me = User(node_id=user_node, preferred_side=preferred_side, image_path=user_image_path)
 
 # Update item locations in the item manager
 for item_id, node_id in item_nodes.items():
@@ -931,7 +957,15 @@ for item_id, node_id in item_nodes.items():
 graph.blocked_nodes = blocked_nodes
 running = True
 active = False  # For text input box state
-
+logger.log("Initial Locations:")
+logger.log(f"Robot initial node: {robot_node}")
+logger.log(f"User initial node: {user_node}")
+logger.log("Items initial nodes:")
+for item_id, node_id in item_nodes.items():
+    logger.log(f"  - {item_id}: {node_id}")
+logger.log("Blocked nodes:")
+for i, node_id in enumerate(blocked_nodes, start=1):
+    logger.log(f"  - Node {i}: {node_id}")
 item_ids = list(items.keys())  # Assuming 'items' is your dictionary of items
 
 # Get the first random item
@@ -947,7 +981,7 @@ second_random_item = item_ids[second_random_index]
 
 # Prepare the command text with the first random item
 text = f"Bring {first_random_item} to me"
-
+logger.log(f"Task: {text}")
 # Input box setup for command input
 input_box = pygame.Rect(100, SCREEN_HEIGHT - 40, 140, 32)
 color_inactive = pygame.Color('lightskyblue3')

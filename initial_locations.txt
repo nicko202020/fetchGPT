@@ -1,2 +1,34 @@
-Command: Bring toothbrush to me then the banana
+Command: Bring toothbrush to me
+Response: None
+Command: Bring comb to me
+Response: None
+Command: Bring toothpaste to me
+Response: None
+Command: Bring toothbrush to me
+Response: None
+Command: Bring burger to me
+Response: None
+Command: Bring toothbrush to me
+Response: None
+Command: Bring water to me
+Response: None
+Command: Bring broom to me
+Response: None
+Command: Bring banana to me
+Response: None
+Command: Bring water to me
+Response: None
+Command: Bring toothbrush to me
+Response: None
+Command: bring sunglasses to me
+Response: None
+Command: Bring sunglasses to me then toothpaste
+Response: None
+Command: Bring sunglasses to me  then burger
+Response: None
+Command: Bring banana to me   then toothpaste
+Response: None
+Command: Bring burger to me then sunglasses
+Response: None
+Command: go to broom
 Response: None
