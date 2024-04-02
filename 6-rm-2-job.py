@@ -823,7 +823,7 @@ Output:
 -Path Details: Specific nodes you will traverse during task execution.
 -Obstacle Response: Your strategy for addressing any encountered obstacles.
 
-Once the task is complete, respond with "TERMINATE".
+Once the task is complete, tell me the plan you came up with at the start then what actually happened. After that, reply with terminate
 """)
 
 # Register functions with the UserProxyAgent

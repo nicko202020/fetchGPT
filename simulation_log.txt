@@ -1,57 +1,44 @@
 Simulation Log
 Initial Locations:
-Robot initial node: gr4
-User initial node: s4
+Robot initial node: lr4
+User initial node: li4
 Items initial nodes:
-  - water: s3
-  - banana: li2
+  - water: of1
+  - banana: gy4
   - toothbrush: lr2
-  - comb: gr3
-  - toothpaste: gr1
-  - sunglasses: of1
+  - comb: li1
+  - toothpaste: lr1
+  - sunglasses: s1
 Blocked nodes:
-  - Node 1: s2
-  - Node 2: of4
-  - Node 3: of3
-Task: Bring comb to me then banana
-Retrieved location for item 'comb': gr3
-Current position retrieved: gr4
-get_path: Path from gr4 to gr3: ['gr4', 'gr3']
-Retrieved location for item 'comb': gr3
-Failed to pick up item comb at gr4
-Moved to node gr3.
-Retrieved location for item 'comb': gr3
-Picked up item comb at gr3
-get_path: Path from gr3 to s4: ['gr3', 'gr4', 'gy2', 'gy6', 's5', 's3', 's4']
-Moved to node gr4.
-Moved to node gy2.
-Moved to node gy6.
-Moved to node s5.
-Moved to node s3.
-Moved to node s4.
-Dropped off item comb at s4
-Retrieved location for item 'banana': li2
-Current position retrieved: s4
-get_path: Path from s4 to li2: ['s4', 's3', 's5', 'gy6', 'gy2', 'gr4', 'gr3', 'gr5', 'li6', 'li2']
-Moved to node s3.
-Moved to node s5.
-Moved to node gy6.
-Moved to node gy2.
+  - Node 1: gy2
+  - Node 2: s4
+  - Node 3: gr2
+Task: Bring toothbrush to me then comb
+Current position retrieved: lr4
+Retrieved location for item 'toothbrush': lr2
+Retrieved location for item 'comb': li1
+get_path: Path from lr4 to lr2: ['lr4', 'lr2']
+Moved to node lr2.
+Retrieved location for item 'toothbrush': lr2
+Picked up item toothbrush at lr2
+get_path: Path from lr2 to li4: ['lr2', 'lr1', 'lr5', 'gr6', 'gr2', 'gr1', 'gr5', 'li6', 'li4']
+Moved to node lr1.
+Moved to node lr5.
+Moved to node gr6.
+Attempted to move to blocked node gr2.
+get_alternative_path: Alternative path from gr6 to li4 avoiding ['gr2']: ['gr6', 'gr4', 'gr3', 'gr5', 'li6', 'li4']
 Moved to node gr4.
 Moved to node gr3.
 Moved to node gr5.
 Moved to node li6.
-Moved to node li2.
-Retrieved location for item 'banana': li2
-Picked up item banana at li2
-get_path: Path from li2 to s4: ['li2', 'li6', 'gr5', 'gr3', 'gr4', 'gy2', 'gy6', 's5', 's3', 's4']
-Moved to node li6.
-Moved to node gr5.
-Moved to node gr3.
-Moved to node gr4.
-Moved to node gy2.
-Moved to node gy6.
-Moved to node s5.
-Moved to node s3.
-Moved to node s4.
-Dropped off item banana at s4
+Moved to node li4.
+Dropped off item toothbrush at li4
+get_path: Path from li4 to li1: ['li4', 'li3', 'li1']
+Moved to node li3.
+Moved to node li1.
+Retrieved location for item 'comb': li1
+Picked up item comb at li1
+get_path: Path from li1 to li4: ['li1', 'li3', 'li4']
+Moved to node li3.
+Moved to node li4.
+Dropped off item comb at li4

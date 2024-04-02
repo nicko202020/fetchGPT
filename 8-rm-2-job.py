@@ -380,20 +380,19 @@ def create_rooms_and_graph():
     graph.add_edge("d5", "s6")
 
 
-    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)         # Right-top room
-    kitchen.add_node("k1", (1010, 290))  # Adjusted from (450, 150)
-    kitchen.add_node("k2", (1210, 290))  # Adjusted from (650, 150)
-    kitchen.add_node("k3", (1010, 490))  # Adjusted from (450, 350)
-    kitchen.add_node("k4", (1210, 490))  # Adjusted from (650, 350)
-    kitchen.add_node("k5", (1010, 390))  # Node near the boundary towards the Living Room
-    kitchen.add_node("k6", (1210, 390))  # Node near the boundary towards the Living Room
+    kitchen = Room("kitchen", 960, 240, 1260, 540, graph)       
+    kitchen.add_node("k1", (1010, 290))  
+    kitchen.add_node("k2", (1210, 290))  
+    kitchen.add_node("k3", (1010, 490))  
+    kitchen.add_node("k4", (1210, 490))  
+    kitchen.add_node("k5", (1010, 390))  
+    kitchen.add_node("k6", (1210, 390)) 
     kitchen.add_edge("k1", "k5")
     kitchen.add_edge("k5", "k3")
     kitchen.add_edge("k3", "k4")
     kitchen.add_edge("k4", "k6")
     kitchen.add_edge("k6", "k2")
     kitchen.add_edge("k1", "k2")
-    graph.add_edge("k4", "d2")
 
     
     dining_room = Room("dining room", 960, 540, 1260, 840, graph) # Right-bottom room
@@ -669,7 +668,9 @@ def get_all_items_robot():
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
     global me  # Assuming 'user' is globally accessible
-    return me.node_id
+    node = logger.log("User node: {me.node_id}")
+
+    return node
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
     node_item_counts = {}  # Track the number of items per node
 
@@ -877,6 +878,7 @@ Inputs:
 -Graph Data: Information about the rooms, nodes, and their connections.
 
 Task:
+-Plan Action Sequence: The series of steps you planned to execute.
 -Decision-Making: Determine the sequence of actions required to complete the delivery tasks, adapting to any new obstacles.
 -Path Planning: Generate optimal paths to move between nodes, retrieve items, and deliver them to the user.
 -Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes. If node is blocked, remember the node you tried to move from to use to find an alternative path

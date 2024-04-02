@@ -782,12 +782,13 @@ Inputs:
 -Graph Data: Information about the rooms, nodes, and their connections.
 
 Task:
+-Plan Action Sequence: The series of steps you plan to execute.
 -Decision-Making: Determine the sequence of actions required to complete the delivery tasks, adapting to any new obstacles.
 -Path Planning: Generate optimal paths to move between nodes, retrieve items, and deliver them to the user.
 -Obstacle Handling: Remember ALL blocked nodes encountered and Adjust your route dynamically in response to blocked nodes. If node is blocked, remember the node you tried to move from to use to find an alternative path
 
 Output:
--Plan Action Sequence: The series of steps you plan to execute.
+-Plan Action Sequence: The series of steps you planned to execute.
 -Execute Action Sequence: The series of steps (function calls) you plan to execute.
 -Path Details: Specific nodes you will traverse during task execution.
 -Obstacle Response: Your strategy for addressing any encountered obstacles.
