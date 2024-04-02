@@ -1,44 +1,67 @@
 Simulation Log
 Initial Locations:
-Robot initial node: lr4
-User initial node: li4
+Robot initial node: li1
+User initial node: gr4
 Items initial nodes:
-  - water: of1
-  - banana: gy4
-  - toothbrush: lr2
-  - comb: li1
-  - toothpaste: lr1
-  - sunglasses: s1
+  - water: of2
+  - banana: of3
+  - toothbrush: lr3
+  - comb: gr1
+  - toothpaste: li2
+  - sunglasses: d4
+  - burger: gy1
+  - broom: k1
 Blocked nodes:
-  - Node 1: gy2
-  - Node 2: s4
-  - Node 3: gr2
-Task: Bring toothbrush to me then comb
-Current position retrieved: lr4
-Retrieved location for item 'toothbrush': lr2
-Retrieved location for item 'comb': li1
-get_path: Path from lr4 to lr2: ['lr4', 'lr2']
-Moved to node lr2.
-Retrieved location for item 'toothbrush': lr2
-Picked up item toothbrush at lr2
-get_path: Path from lr2 to li4: ['lr2', 'lr1', 'lr5', 'gr6', 'gr2', 'gr1', 'gr5', 'li6', 'li4']
-Moved to node lr1.
-Moved to node lr5.
-Moved to node gr6.
-Attempted to move to blocked node gr2.
-get_alternative_path: Alternative path from gr6 to li4 avoiding ['gr2']: ['gr6', 'gr4', 'gr3', 'gr5', 'li6', 'li4']
+  - Node 1: s3
+  - Node 2: k3
+  - Node 3: k6
+  - Node 4: lr5
+Task: Bring toothbrush to me then toothpaste
+Retrieved location for item 'toothbrush': lr3
+Current position retrieved: li1
+get_path: Path from li1 to lr3: ['li1', 'li2', 'li6', 'gr5', 'gr3', 'gr4', 'gr6', 'lr5', 'lr3']
+Retrieved location for item 'toothbrush': lr3
+Failed to pick up item toothbrush at li1
+Moved to node li2.
+Moved to node li6.
+Moved to node gr5.
+Moved to node gr3.
 Moved to node gr4.
+Moved to node gr6.
+Attempted to move to blocked node lr5.
+get_alternative_path: Alternative path from gr6 to lr3 avoiding ['lr5']: ['gr6', 'gr4', 'gy2', 'gy6', 's5', 's1', 's2', 'lr4', 'lr3']
+Moved to node gr4.
+Moved to node gy2.
+Moved to node gy6.
+Moved to node s5.
+Moved to node s1.
+Moved to node s2.
+Moved to node lr4.
+Moved to node lr3.
+Retrieved location for item 'toothbrush': lr3
+Picked up item toothbrush at lr3
+User node: gr4
+get_path: Path from lr3 to gr4: ['lr3', 'lr5', 'gr6', 'gr4']
+get_alternative_path: Alternative path from lr3 to gr4 avoiding ['lr5']: ['lr3', 'lr4', 's2', 's1', 's5', 'gy6', 'gy2', 'gr4']
+Moved to node lr4.
+Moved to node s2.
+Moved to node s1.
+Moved to node s5.
+Moved to node gy6.
+Moved to node gy2.
+Moved to node gr4.
+Dropped off item toothbrush at gr4
+Retrieved location for item 'toothpaste': li2
+Current position retrieved: gr4
+get_path: Path from gr4 to li2: ['gr4', 'gr3', 'gr5', 'li6', 'li2']
 Moved to node gr3.
 Moved to node gr5.
 Moved to node li6.
-Moved to node li4.
-Dropped off item toothbrush at li4
-get_path: Path from li4 to li1: ['li4', 'li3', 'li1']
-Moved to node li3.
-Moved to node li1.
-Retrieved location for item 'comb': li1
-Picked up item comb at li1
-get_path: Path from li1 to li4: ['li1', 'li3', 'li4']
-Moved to node li3.
-Moved to node li4.
-Dropped off item comb at li4
+Moved to node li2.
+Retrieved location for item 'toothpaste': li2
+Picked up item toothpaste at li2
+User node: gr4
+get_path: Path from li2 to gr4: ['li2', 'li6', 'gr5', 'gr3', 'gr4']
+Moved to node li6.
+Moved to node gr5.
+Moved to node gr3.

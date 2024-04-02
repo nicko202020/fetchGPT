@@ -291,6 +291,8 @@ def create_rooms_and_graph():
     library.add_node("li3", (110, 490))
     library.add_node("li4", (310, 490))
     library.add_node("li6", (310, 390))
+    library.add_node("li7", (310, 100))
+
     library.add_edge("li1", "li2")
     library.add_edge("li2", "li6")
     library.add_edge("li6", "li4")
@@ -823,7 +825,7 @@ Output:
 -Path Details: Specific nodes you will traverse during task execution.
 -Obstacle Response: Your strategy for addressing any encountered obstacles.
 
-Once the task is complete, tell me the plan you came up with at the start then what actually happened. After that, reply with terminate
+Once the task is complete, tell me the plan you came up with at the start then what actually happened. After that, reply with "TERMINATE"
 """)
 
 # Register functions with the UserProxyAgent

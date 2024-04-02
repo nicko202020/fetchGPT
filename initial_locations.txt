@@ -32,3 +32,13 @@ Command: Bring burger to me then sunglasses
 Response: None
 Command: go to broom
 Response: None
+Command: Bring banana to me then water
+Response: None
+Command: Bring toothpaste to me then toothbrush
+Response: None
+Command: Bring toothbrush to me then water
+Response: None
+Command: Bring burger to me then sunglasses
+Response: None
+Command: Bring toothbrush to me then toothpaste
+Response: None

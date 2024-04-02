@@ -363,11 +363,13 @@ def create_rooms_and_graph():
 
     study_room = Room("study room", 660, 540, 960, 840, graph)    
     study_room.add_node("s1", (710, 590))  
-    study_room.add_node("s2", (910, 590))  
+    study_room.add_node("s2", (910, 590))      
     study_room.add_node("s3", (710, 790))  
     study_room.add_node("s4", (910, 790))  
-    study_room.add_node("s5", (910, 690)) 
-    study_room.add_node("s6", (710, 690)) 
+    study_room.add_node("s5", (710, 690)) 
+    study_room.add_node("s6", (910, 690)) 
+
+
     study_room.add_edge("s1", "s2")
     study_room.add_edge("s2", "s6")
     study_room.add_edge("s6", "s4")
@@ -668,9 +670,10 @@ def get_all_items_robot():
 def get_user_node():
     """Retrieves the node at which the user is currently located."""
     global me  # Assuming 'user' is globally accessible
-    node = logger.log("User node: {me.node_id}")
-
-    return node
+    user_node = me.node_id
+    # Log the user's current node
+    logger.log(f"User node: {user_node}")
+    return user_node
 def draw_item_on_map(screen, robot, item_manager, items, graph, user):
     node_item_counts = {}  # Track the number of items per node
 
